@@ -11,7 +11,7 @@ function ExplosionEffect({ position, color, id }: { position: [number, number, n
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const removeExplosion = useStore((state) => state.removeExplosion);
 
-  const [[positions, velocities, lifetimes]] = useState(() => {
+  const [arrays] = useState(() => {
     const pos = new Float32Array(PARTICLES_PER_EXPLOSION * 3);
     const vel = new Float32Array(PARTICLES_PER_EXPLOSION * 3);
     const lts = new Float32Array(PARTICLES_PER_EXPLOSION);
@@ -30,8 +30,9 @@ function ExplosionEffect({ position, color, id }: { position: [number, number, n
         
         lts[i] = 0.5 + Math.random() * 1.5;
     }
-    return [[pos, vel, lts]];
+    return [pos, vel, lts];
   });
+  const [positions, velocities, lifetimes] = arrays;
 
   // Clean up explosion from global state after 2 seconds
   useEffect(() => {

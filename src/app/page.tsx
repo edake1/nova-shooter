@@ -95,7 +95,7 @@ export default function Game() {
         </Suspense>
 
         {/* Post-Processing Pipeline! The 2026 Tech */}
-        <EffectComposer disableNormalPass>
+        <EffectComposer>
           <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
           <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(0.002, 0.002)} />
           <Vignette eskil={false} offset={0.1} darkness={1.1} />
