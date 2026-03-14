@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
-import { useStore } from "@/store";
+import { useStore, EnemyData } from "@/store";
 import * as THREE from "three";
 
 export function Enemies() {
@@ -20,22 +20,40 @@ export function Enemies() {
   return (
     <>
       {enemies.map((enemy) => (
-        <Enemy key={enemy.id} id={enemy.id} position={enemy.position} />
+        <Enemy key={enemy.id} enemy={enemy} />
       ))}
     </>
   );
 }
 
-function Enemy({ id, position }: { id: number; position: [number, number, number] }) {
+function Enemy({ enemy }: { enemy: EnemyData }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const rigidBodyRef = useRef<RapierRigidBody>(null);
-  const [speed] = useState(() => Math.random() * 2 + 1); // Random speed per unit
   
+  // Set distinct traits based on enemy type
+  const [traits] = useState(() => {
+    switch (enemy.type) {
+      case 'juggernaut': return { speed: 1.5, baseScale: 3, rotSpeed: 0.005 };
+      case 'bomber': return { speed: 4, baseScale: 1.5, rotSpeed: 0.05 };
+      case 'swarmer': default: return { speed: 3.5 + Math.random() * 2, baseScale: 1, rotSpeed: 0.02 };
+    }
+  });
+  
+  // Visual reactions to damage
+  const healthRatio = enemy.health / enemy.maxHealth;
+  const currentScale = enemy.type === 'juggernaut' ? traits.baseScale * (0.5 + 0.5 * healthRatio) : traits.baseScale;
+  
+  const emissiveColor = enemy.type === 'swarmer' ? '#ff0044' : enemy.type === 'juggernaut' ? '#0088ff' : '#ffaa00';
+  const coreColor = enemy.type === 'swarmer' ? '#ff0040' : enemy.type === 'juggernaut' ? '#00ccff' : '#ff4400';
+  const intensityMultiplier = enemy.type === 'juggernaut' ? healthRatio : 1;
+  const wireframeIntensity = 4 * intensityMultiplier;
+  const coreIntensity = 8 * intensityMultiplier;
+
   useFrame((state) => {
     if (meshRef.current && rigidBodyRef.current) {
-      // Rotate the enemy to look sinister
-      meshRef.current.rotation.x += 0.01;
-      meshRef.current.rotation.y += 0.02;
+      // Rotate the enemy
+      meshRef.current.rotation.x += traits.rotSpeed;
+      meshRef.current.rotation.y += traits.rotSpeed * 2;
 
       // Swarm AI: Move towards the player's camera position dynamically
       const playerPos = state.camera.position;
@@ -43,6 +61,8 @@ function Enemy({ id, position }: { id: number; position: [number, number, number
       
       const dir = new THREE.Vector3()
         .subVectors(playerPos, new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z));
+      
+      const distanceToPlayer = dir.length();
         
       if (dir.lengthSq() > 0.001) {
         dir.normalize();
@@ -50,37 +70,55 @@ function Enemy({ id, position }: { id: number; position: [number, number, number
         dir.set(0, 0, 1);
       }
       
+      // Bombers stop at a certain distance to "charge" (we'll add detonation later)
+      if (enemy.type === 'bomber' && distanceToPlayer < 8) {
+         dir.set(0, 0, 0); 
+         // Shake bomber furiously as if charging
+         meshRef.current.position.set(
+            (Math.random() - 0.5) * 0.1,
+            (Math.random() - 0.5) * 0.1,
+            (Math.random() - 0.5) * 0.1
+         );
+      } else {
+         meshRef.current.position.set(0,0,0);
+      }
+      
       // Preserve Y to let physics gravity handle bounding
       dir.y = 0;
 
       // Apply linear velocity towards player
       rigidBodyRef.current.setLinvel({
-        x: dir.x * speed,
-        y: currentPos.y < 3 ? speed : -0.5, // gentle bobbing/hovering using physics
-        z: dir.z * speed
+        x: dir.x * traits.speed,
+        y: currentPos.y < 3 * currentScale ? traits.speed : -0.5, // hovering using physics
+        z: dir.z * traits.speed
       }, true);
     }
   });
 
   return (
-    <RigidBody ref={rigidBodyRef} position={position} type="dynamic" colliders="ball" mass={1} linearDamping={2}>
-      <mesh ref={meshRef} userData={{ isEnemy: true, id }} castShadow receiveShadow>
-        <icosahedronGeometry args={[1.5, 0]} />
-        <meshStandardMaterial 
-          color="#111" 
-          emissive="#ff0044" 
-          emissiveIntensity={4} 
-          roughness={0.2} 
-          metalness={1.0} 
-          wireframe
-        />
-      </mesh>
-      
-      {/* Inner glowing core */}
-      <mesh>
-         <sphereGeometry args={[0.8, 16, 16]} />
-         <meshStandardMaterial color="#000" emissive="#ff0040" emissiveIntensity={8} />
-      </mesh>
+    <RigidBody ref={rigidBodyRef} position={enemy.position} type="dynamic" colliders="ball" mass={enemy.type === 'juggernaut' ? 10 : 1} linearDamping={2}>
+      <group scale={[currentScale, currentScale, currentScale]}>
+        <mesh ref={meshRef} userData={{ isEnemy: true, id: enemy.id }} castShadow receiveShadow>
+          {enemy.type === 'juggernaut' ? <octahedronGeometry args={[1.5, 0]} /> :
+           enemy.type === 'bomber' ? <dodecahedronGeometry args={[1.5, 0]} /> :
+           <icosahedronGeometry args={[1.5, 0]} />}
+          
+          <meshStandardMaterial 
+            color="#111" 
+            emissive={emissiveColor} 
+            emissiveIntensity={wireframeIntensity} 
+            roughness={0.2} 
+            metalness={1.0} 
+            wireframe={enemy.type !== 'bomber'}
+          />
+        </mesh>
+        
+        {/* Inner glowing core */}
+        <mesh>
+           <sphereGeometry args={[0.8, 16, 16]} />
+           <meshStandardMaterial color="#000" emissive={coreColor} emissiveIntensity={coreIntensity} />
+        </mesh>
+      </group>
     </RigidBody>
   );
 }

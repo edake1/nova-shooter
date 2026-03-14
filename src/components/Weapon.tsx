@@ -35,15 +35,39 @@ export function Weapon() {
             let obj: THREE.Object3D | null = hit.object;
             while (obj) {
               if (obj.userData?.isEnemy) {
-                // Remove the enemy from global state and grant score
-                useStore.getState().removeEnemy(obj.userData.id);
-                useStore.getState().incScore(100);
-                
-                // Spawn pure GPU Particles Explosion
-                const pos = new THREE.Vector3();
-                obj.getWorldPosition(pos);
-                useStore.getState().addExplosion([pos.x, pos.y, pos.z], "#ff0040");
+                const state = useStore.getState();
+                const targetId = obj.userData.id;
+                const enemy = state.enemies.find(e => e.id === targetId);
 
+                if (enemy) {
+                   if (enemy.health <= 1) {
+                      // Remove the enemy from global state and grant score
+                      state.removeEnemy(targetId);
+                      
+                      const scoreMod = enemy.type === 'juggernaut' ? 500 : enemy.type === 'bomber' ? 200 : 100;
+                      state.incScore(scoreMod);
+                      
+                      // Spawn pure GPU Particles Explosion
+                      const pos = new THREE.Vector3();
+                      obj.getWorldPosition(pos);
+                      const expColor = enemy.type === 'juggernaut' ? "#0088ff" : enemy.type === 'bomber' ? '#ffaa00' : "#ff0040";
+                      state.addExplosion([pos.x, pos.y, pos.z], expColor);
+                      
+                      // Play sound depending on player killing an enemy
+                      const audio = new Audio('/foxboytails-game-start-317318.mp3');
+                      audio.volume = 0.5;
+                      audio.play().catch(e => console.log('Audio play failed', e));
+
+                   } else {
+                      // Just damage the enemy
+                      state.damageEnemy(targetId, 1);
+                      
+                      // Play hit sound
+                      const audio = new Audio('/cyberwave-orchestra-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824.mp3');
+                      audio.volume = 0.2;
+                      audio.play().catch(e => console.log('Audio play failed', e));
+                   }
+                }
                 break; // Stop at the first hit
               }
               obj = obj.parent;
