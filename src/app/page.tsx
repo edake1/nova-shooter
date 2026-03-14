@@ -6,13 +6,37 @@ import { Physics, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { useStore } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
+
+function AliveText({ value, prefix = "", suffix = "", animate = false }: { value: string | number, prefix?: string, suffix?: string, animate?: boolean }) {
+  const [display, setDisplay] = useState(value.toString());
+  
+  useEffect(() => {
+    if (!animate) {
+      setDisplay(value.toString());
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      // Randomly glitch the text slightly just for a cool cyberpunk effect
+      const text = value.toString();
+      const glitched = text.split('').map(char => 
+        Math.random() > 0.95 ? String.fromCharCode(33 + Math.floor(Math.random() * 94)) : char
+      ).join('');
+      setDisplay(glitched);
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [value, animate]);
+
+  return <span>{prefix}{display}{suffix}</span>;
+}
 
 export default function Game() {
   const { score, level, killsThisLevel, isPaused, setPaused } = useStore();
@@ -29,7 +53,9 @@ export default function Game() {
         if (document.pointerLockElement) {
           document.exitPointerLock();
         } else {
-          // If not locked and Tab is pressed, we could try to lock, but browsers require user interaction (click) for requestPointerLock.
+          document.body.requestPointerLock().catch(err => {
+            console.warn("Could not lock pointer on Tab, might need a click:", err);
+          });
         }
       }
     };
@@ -130,8 +156,8 @@ export default function Game() {
       </Canvas>
 
       {/* Cyberpunk HUD Overlay (Client-only to avoid hydration mismatch) */}
-      {mounted && (
-        <div className="absolute inset-0 pointer-events-none z-10">
+      {mounted && !isPaused && (
+        <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
             {/* Dynamic Crosshair */}
             <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#00ffff]" />
@@ -147,18 +173,27 @@ export default function Game() {
               <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
               
               <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
-                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20">
-                    <span className="text-yellow-400/70 font-mono text-xs uppercase">Level {level}</span>
-                    <span className="text-yellow-400 font-mono font-bold">{killsThisLevel} / {level * 10} KILLS</span>
+                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+                    <span className="text-yellow-400/70 font-mono text-xs uppercase flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping"></span>
+                      Level <AliveText value={level} animate={true} />
+                    </span>
+                    <span className="text-yellow-400 font-mono font-bold tracking-widest"><AliveText value={killsThisLevel} /> / {level * 10} KILLS</span>
                  </div>
-                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10">
-                    <span className="text-cyan-400/70 font-mono text-xs uppercase">Target Intel</span>
-                    <span className="text-cyan-300 font-mono font-bold">{score.toString().padStart(4, '0')} PTS</span>
+                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
+                    <span className="text-cyan-400/70 font-mono text-xs uppercase flex items-center gap-2">
+                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                       Target Intel
+                    </span>
+                    <span className="text-cyan-300 font-mono font-bold tracking-widest"><AliveText value={score.toString().padStart(4, '0')} animate={true} suffix=" PTS" /></span>
                  </div>
                  
                  <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-purple-500/10">
-                    <span className="text-purple-400/70 font-mono text-xs uppercase">Threat Level</span>
-                    <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary">CRITICAL</span>
+                    <span className="text-purple-400/70 font-mono text-xs uppercase flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+                      Threat Level
+                    </span>
+                    <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary"><AliveText value="CRITICAL" animate={true} /></span>
                  </div>
               </div>
               

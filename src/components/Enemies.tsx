@@ -35,9 +35,9 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   // Set distinct traits based on enemy type
   const [traits] = useState(() => {
     switch (enemy.type) {
-      case 'juggernaut': return { speed: 1.5, baseScale: 3, rotSpeed: 0.005 };
-      case 'bomber': return { speed: 4, baseScale: 1.5, rotSpeed: 0.05 };
-      case 'swarmer': default: return { speed: 3.5 + Math.random() * 2, baseScale: 1, rotSpeed: 0.02 };
+      case 'juggernaut': return { speed: 3.5, baseScale: 1.8, rotSpeed: 0.005 };
+      case 'bomber': return { speed: 6.5, baseScale: 0.9, rotSpeed: 0.05 };
+      case 'swarmer': default: return { speed: 5.5 + Math.random() * 2, baseScale: 0.5, rotSpeed: 0.02 };
     }
   });
   
@@ -119,7 +119,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
         
         {/* Inner glowing core */}
         <mesh>
-           <sphereGeometry args={[0.8, 16, 16]} />
+           <sphereGeometry args={[0.8, 8, 8]} />
            <meshStandardMaterial color="#000" emissive={coreColor} emissiveIntensity={coreIntensity} />
         </mesh>
       </group>
