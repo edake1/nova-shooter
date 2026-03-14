@@ -42,7 +42,7 @@ export const useStore = create<GameState>((set) => ({
   score: 0,
   enemies: INITIAL_ENEMIES,
   explosions: [],
-  isPaused: false,
+  isPaused: true,
   incScore: (val) => set((state) => ({ score: state.score + val })),
   setPaused: (val) => set({ isPaused: val }),
   damageEnemy: (id, amount) => set((state) => ({

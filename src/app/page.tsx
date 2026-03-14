@@ -19,14 +19,18 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Tab') {
+      if (e.key === 'Tab') {
         e.preventDefault();
-        setPaused(!useStore.getState().isPaused);
+        if (document.pointerLockElement) {
+          document.exitPointerLock();
+        } else {
+          // If not locked and Tab is pressed, we could try to lock, but browsers require user interaction (click) for requestPointerLock.
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setPaused]);
+  }, []);
 
   return (
     <main className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
@@ -114,7 +118,10 @@ export default function Game() {
           <Noise opacity={0.03} />
         </EffectComposer>
 
-        <PointerLockControls />
+        <PointerLockControls 
+          onLock={() => setPaused(false)} 
+          onUnlock={() => setPaused(true)} 
+        />
       </Canvas>
 
       {/* Cyberpunk HUD Overlay */}

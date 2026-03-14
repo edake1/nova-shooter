@@ -8,8 +8,18 @@ export function PauseMenu() {
   if (!isPaused) return null;
 
   return (
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="glass-panel w-full max-w-4xl p-8 flex flex-col gap-6 animate-in fade-in zoom-in duration-300">
+    <div 
+      className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={() => {
+        if (document.pointerLockElement !== document.body) {
+          document.body.requestPointerLock();
+        }
+      }}
+    >
+      <div 
+        className="glass-panel w-full max-w-4xl p-8 flex flex-col gap-6 animate-in fade-in zoom-in duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="flex justify-between items-end border-b border-cyan-500/30 pb-4">
