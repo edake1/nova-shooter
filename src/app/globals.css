@@ -14,12 +14,12 @@ body {
 .font-orbitron { font-family: 'Orbitron', sans-serif; }
 
 .glass-panel {
-  background: rgba(10, 20, 30, 0.4);
+  background: linear-gradient(160deg, rgba(8, 18, 34, 0.58), rgba(6, 12, 24, 0.42));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(34, 211, 238, 0.28);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8),
-              inset 0 0 32px rgba(0, 255, 255, 0.05);
+              inset 0 0 42px rgba(56, 189, 248, 0.1);
   border-radius: 20px;
 }
 
@@ -29,4 +29,320 @@ body {
 
 .glass-text-secondary {
   text-shadow: 0 0 8px rgba(168, 85, 247, 0.8), 0 0 24px rgba(168, 85, 247, 0.4);
+}
+
+.tactical-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.tactical-shell::before {
+  content: "";
+  position: absolute;
+  inset: -30% -20%;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(34, 211, 238, 0.13), transparent 35%),
+    radial-gradient(circle at 82% 78%, rgba(16, 185, 129, 0.1), transparent 34%),
+    radial-gradient(circle at 50% 48%, rgba(56, 189, 248, 0.08), transparent 40%);
+  animation: tactical-drift 18s linear infinite;
+  pointer-events: none;
+}
+
+.tactical-stars::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.26;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    radial-gradient(rgba(56, 189, 248, 0.35) 1px, transparent 1px);
+  background-size: 3px 3px, 4px 4px;
+  background-position: 0 0, 20px 30px;
+  pointer-events: none;
+}
+
+.tactical-scan {
+  position: relative;
+}
+
+.tactical-scan::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(125, 211, 252, 0.02) 0,
+    rgba(125, 211, 252, 0.02) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.tactical-scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 90px;
+  top: -110px;
+  background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.08), transparent);
+  animation: tactical-sweep 6.5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes tactical-sweep {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+@keyframes tactical-drift {
+  0% {
+    transform: translate3d(-1%, -1%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(1.2%, 1.5%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-1%, -1%, 0) scale(1);
+  }
+}
+
+.menu-cursor {
+  position: fixed;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(56, 189, 248, 0.9);
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.7), inset 0 0 8px rgba(34, 211, 238, 0.3);
+  z-index: 250;
+}
+
+.menu-cursor-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #a5f3fc;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px rgba(165, 243, 252, 0.9);
+}
+
+.combat-reticle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90px;
+  height: 90px;
+  pointer-events: none;
+}
+
+.combat-reticle-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.95);
+}
+
+.combat-reticle-ring,
+.combat-reticle-ring-secondary {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+}
+
+.combat-reticle-ring {
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(34, 211, 238, 0.95);
+  animation: spin-slow 4.4s linear infinite;
+}
+
+.combat-reticle-ring-secondary {
+  width: 68px;
+  height: 68px;
+  border: 1px dashed rgba(14, 165, 233, 0.6);
+  animation: spin-rev 6.8s linear infinite;
+}
+
+.combat-reticle-arm {
+  position: absolute;
+  background: linear-gradient(to right, rgba(34, 211, 238, 0.1), rgba(125, 211, 252, 0.95));
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.9);
+}
+
+.combat-reticle-arm.arm-top,
+.combat-reticle-arm.arm-bottom {
+  width: 2px;
+  height: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.combat-reticle-arm.arm-top {
+  top: 4px;
+}
+
+.combat-reticle-arm.arm-bottom {
+  bottom: 4px;
+}
+
+.combat-reticle-arm.arm-left,
+.combat-reticle-arm.arm-right {
+  height: 2px;
+  width: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.combat-reticle-arm.arm-left {
+  left: 4px;
+}
+
+.combat-reticle-arm.arm-right {
+  right: 4px;
+}
+
+.combat-reticle-label {
+  position: absolute;
+  left: 50%;
+  bottom: -16px;
+  transform: translateX(-50%);
+  color: rgba(186, 230, 253, 0.8);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.reticle-reduced-motion .combat-reticle-ring,
+.reticle-reduced-motion .combat-reticle-ring-secondary,
+.reticle-reduced-motion .combat-reticle-arm {
+  animation: none !important;
+}
+
+.hit-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+}
+
+.hit-marker span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 24px;
+  background: rgba(186, 230, 253, 0.95);
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.9);
+}
+
+.hit-marker span:first-child {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.hit-marker span:last-child {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.hit-marker-kill span {
+  background: rgba(74, 222, 128, 0.95);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.85);
+}
+
+.incoming-indicators {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.incoming-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  filter: drop-shadow(0 0 10px rgba(251, 113, 133, 0.85));
+  transition: opacity 90ms linear;
+}
+
+.incoming-front {
+  transform: translate(-50%, -110px);
+  border-width: 0 10px 18px 10px;
+  border-color: transparent transparent rgba(251, 113, 133, 0.9) transparent;
+}
+
+.incoming-right {
+  transform: translate(95px, -50%);
+  border-width: 10px 0 10px 18px;
+  border-color: transparent transparent transparent rgba(251, 113, 133, 0.9);
+}
+
+.incoming-back {
+  transform: translate(-50%, 92px);
+  border-width: 18px 10px 0 10px;
+  border-color: rgba(251, 113, 133, 0.9) transparent transparent transparent;
+}
+
+.incoming-left {
+  transform: translate(-112px, -50%);
+  border-width: 10px 18px 10px 0;
+  border-color: transparent rgba(251, 113, 133, 0.9) transparent transparent;
+}
+
+.combat-reticle-pulse {
+  animation: reticle-burst 140ms ease-out;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes spin-rev {
+  from {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+@keyframes reticle-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 0 rgba(186, 230, 253, 0));
+  }
+  45% {
+    transform: translate(-50%, -50%) scale(1.14);
+    filter: drop-shadow(0 0 10px rgba(186, 230, 253, 0.9));
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: drop-shadow(0 0 0 rgba(186, 230, 253, 0));
+  }
 }

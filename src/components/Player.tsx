@@ -2,28 +2,33 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { RigidBody, useRapier, RapierRigidBody, CapsuleCollider } from "@react-three/rapier";
 import { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
+import { useStore } from "@/store";
 
-const SPEED = 5;
-const JUMP_FORCE = 5;
+const SPEED = 6;
+const SPRINT_MULTIPLIER = 1.6;
+const JUMP_FORCE = 6;
+const GROUND_RAY_LENGTH = 1.3; // Slightly longer than capsule half-height + radius
 
 const useKeyControls = () => {
-  const [movement, setMovement] = useState({ forward: false, backward: false, left: false, right: false, jump: false });
+  const keys = useRef({ forward: false, backward: false, left: false, right: false, jump: false, sprint: false });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "KeyW") setMovement((m) => ({ ...m, forward: true }));
-      if (e.code === "KeyS") setMovement((m) => ({ ...m, backward: true }));
-      if (e.code === "KeyA") setMovement((m) => ({ ...m, left: true }));
-      if (e.code === "KeyD") setMovement((m) => ({ ...m, right: true }));
-      if (e.code === "Space") setMovement((m) => ({ ...m, jump: true }));
+      if (e.code === "KeyW") keys.current.forward = true;
+      if (e.code === "KeyS") keys.current.backward = true;
+      if (e.code === "KeyA") keys.current.left = true;
+      if (e.code === "KeyD") keys.current.right = true;
+      if (e.code === "Space") keys.current.jump = true;
+      if (e.code === "ShiftLeft") keys.current.sprint = true;
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "KeyW") setMovement((m) => ({ ...m, forward: false }));
-      if (e.code === "KeyS") setMovement((m) => ({ ...m, backward: false }));
-      if (e.code === "KeyA") setMovement((m) => ({ ...m, left: false }));
-      if (e.code === "KeyD") setMovement((m) => ({ ...m, right: false }));
-      if (e.code === "Space") setMovement((m) => ({ ...m, jump: false }));
+      if (e.code === "KeyW") keys.current.forward = false;
+      if (e.code === "KeyS") keys.current.backward = false;
+      if (e.code === "KeyA") keys.current.left = false;
+      if (e.code === "KeyD") keys.current.right = false;
+      if (e.code === "Space") keys.current.jump = false;
+      if (e.code === "ShiftLeft") keys.current.sprint = false;
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -35,13 +40,14 @@ const useKeyControls = () => {
     };
   }, []);
 
-  return movement;
+  return keys;
 };
 
 export function Player() {
-  const { forward, backward, left, right, jump } = useKeyControls();
+  const keys = useKeyControls();
   const playerRef = useRef<RapierRigidBody>(null);
   const { camera } = useThree();
+  const { world, rapier } = useRapier();
 
   const frontVector = useMemo(() => new THREE.Vector3(), []);
   const sideVector = useMemo(() => new THREE.Vector3(), []);
@@ -49,19 +55,23 @@ export function Player() {
 
   useFrame(() => {
     if (!playerRef.current) return;
+    if (useStore.getState().isPaused) return;
 
-    // 1. Move the camera to the player's 'eyes'
+    const { forward, backward, left, right, jump, sprint } = keys.current;
+
+    // 1. Move the camera to the player's eyes
     const position = playerRef.current.translation();
     camera.position.set(position.x, position.y + 0.8, position.z);
 
-    // 2. Calculate movement directions relative to where camera is looking
+    // 2. Calculate movement directions relative to camera look
     frontVector.set(0, 0, Number(backward) - Number(forward));
     sideVector.set(Number(left) - Number(right), 0, 0);
 
+    const speed = sprint ? SPEED * SPRINT_MULTIPLIER : SPEED;
     direction
       .subVectors(frontVector, sideVector)
       .normalize()
-      .multiplyScalar(SPEED)
+      .multiplyScalar(speed)
       .applyEuler(camera.rotation);
 
     // 3. Apply walking physics
@@ -71,8 +81,15 @@ export function Player() {
       true
     );
 
-    // 4. Handle jumping (Basic: check if Y velocity is very low, meaning we are on the ground)
-    if (jump && Math.abs(linvel.y) < 0.1) {
+    // 4. Ground detection via Rapier raycast (proper ground check, not velocity hack)
+    const ray = new rapier.Ray(
+      { x: position.x, y: position.y, z: position.z },
+      { x: 0, y: -1, z: 0 }
+    );
+    const hit = world.castRay(ray, GROUND_RAY_LENGTH, true, undefined, undefined, undefined, playerRef.current);
+    const isGrounded = hit !== null && hit.timeOfImpact < GROUND_RAY_LENGTH;
+
+    if (jump && isGrounded) {
       playerRef.current.setLinvel({ x: linvel.x, y: JUMP_FORCE, z: linvel.z }, true);
     }
   });
@@ -84,11 +101,9 @@ export function Player() {
       mass={1}
       type="dynamic"
       position={[0, 2, 0]}
-      // Prevent the capsule from falling over
       enabledRotations={[false, false, false]}
     >
       <CapsuleCollider args={[0.5, 0.5]} />
-      {/* Mesh is hidden as it is a FPS view now */}
       <mesh visible={false}>
         <capsuleGeometry args={[0.5, 1, 4, 8]} />
         <meshStandardMaterial color="hotpink" />

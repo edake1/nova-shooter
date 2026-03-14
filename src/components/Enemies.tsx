@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RigidBody } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
@@ -31,6 +31,22 @@ export function Enemies() {
 function Enemy({ enemy }: { enemy: EnemyData }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const rigidBodyRef = useRef<RapierRigidBody>(null);
+  const lastThreatAtRef = useRef(0);
+  const lastDamageAtRef = useRef(0);
+  
+  // Pre-allocate vectors ONCE — reused every frame (zero GC pressure)
+  const vecs = useMemo(() => ({
+    dir: new THREE.Vector3(),
+    currentPos: new THREE.Vector3(),
+    toEnemy: new THREE.Vector3(),
+    cameraForward: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+    up: new THREE.Vector3(0, 1, 0),
+  }), []);
+  
+  // Contact damage per enemy type
+  const contactDamage = enemy.type === 'juggernaut' ? 15 : enemy.type === 'bomber' ? 25 : 8;
+  const contactRange = enemy.type === 'juggernaut' ? 3.5 : enemy.type === 'bomber' ? 2.5 : 2.0;
   
   // Set distinct traits based on enemy type
   const [traits] = useState(() => {
@@ -61,40 +77,60 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
 
       // Swarm AI: Move towards the player's camera position dynamically
       const playerPos = state.camera.position;
-      const currentPos = rigidBodyRef.current.translation();
+      const t = rigidBodyRef.current.translation();
+      vecs.currentPos.set(t.x, t.y, t.z);
       
-      const dir = new THREE.Vector3()
-        .subVectors(playerPos, new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z));
-      
-      const distanceToPlayer = dir.length();
+      vecs.dir.subVectors(playerPos, vecs.currentPos);
+      const distanceToPlayer = vecs.dir.length();
+
+      if (distanceToPlayer < 13 && performance.now() - lastThreatAtRef.current > 700) {
+        vecs.toEnemy.subVectors(vecs.currentPos, playerPos).normalize();
+        state.camera.getWorldDirection(vecs.cameraForward);
+        vecs.right.crossVectors(vecs.cameraForward, vecs.up).normalize();
+
+        const side = vecs.right.dot(vecs.toEnemy);
+        const front = vecs.cameraForward.dot(vecs.toEnemy);
+        const intensity = Math.min(1, 1 - distanceToPlayer / 13 + 0.2);
+
+        window.dispatchEvent(new CustomEvent("nova:incoming", {
+          detail: { side, front, intensity }
+        }));
+
+        lastThreatAtRef.current = performance.now();
+      }
+
+      // Contact damage — hurt player when in melee range (throttled to 1 hit/sec)
+      const now = performance.now();
+      if (distanceToPlayer < contactRange && now - lastDamageAtRef.current > 1000) {
+        lastDamageAtRef.current = now;
+        useStore.getState().damagePlayer(contactDamage);
+        window.dispatchEvent(new CustomEvent("nova:playerHit", { detail: { damage: contactDamage } }));
+      }
         
-      if (dir.lengthSq() > 0.001) {
-        dir.normalize();
+      if (vecs.dir.lengthSq() > 0.001) {
+        vecs.dir.normalize();
       } else {
-        dir.set(0, 0, 1);
+        vecs.dir.set(0, 0, 1);
       }
       
-      // Bombers stop at a certain distance to "charge" (we'll add detonation later)
+      // Bombers stop at a certain distance to "charge"
       if (enemy.type === 'bomber' && distanceToPlayer < 8) {
-         dir.set(0, 0, 0); 
-         // Shake bomber furiously as if charging
+         vecs.dir.set(0, 0, 0); 
          meshRef.current.position.set(
             (Math.random() - 0.5) * 0.1,
             (Math.random() - 0.5) * 0.1,
             (Math.random() - 0.5) * 0.1
          );
       } else {
-         meshRef.current.position.set(0,0,0);
+         meshRef.current.position.set(0, 0, 0);
       }
       
-      // Preserve Y to let physics gravity handle bounding
-      dir.y = 0;
+      vecs.dir.y = 0;
 
-      // Apply linear velocity towards player
       rigidBodyRef.current.setLinvel({
-        x: dir.x * traits.speed,
-        y: currentPos.y < 3 * currentScale ? traits.speed : -0.5, // hovering using physics
-        z: dir.z * traits.speed
+        x: vecs.dir.x * traits.speed,
+        y: t.y < 3 * currentScale ? traits.speed : -0.5,
+        z: vecs.dir.z * traits.speed
       }, true);
     }
   });
