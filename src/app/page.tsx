@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { PointerLockControls, Grid, Stars } from "@react-three/drei";
+import { PointerLockControls, Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
@@ -10,7 +10,7 @@ import { Suspense } from "react";
 import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
-import { Debris } from "@/components/Debris";
+import { GPUParticles } from "@/components/GPUParticles";
 import { useStore } from "@/store";
 
 export default function Game() {
@@ -35,8 +35,8 @@ export default function Game() {
             {/* Enemies */}
             <Enemies />
 
-            {/* GPU Particles (Debris) */}
-            <Debris />
+            {/* True GPU Particles */}
+            <GPUParticles />
 
             {/* Giant Monolith Obstacles */}
             <RigidBody type="fixed" position={[0, 4, -15]} colliders="cuboid">
@@ -52,14 +52,33 @@ export default function Game() {
               </mesh>
             </RigidBody>
 
-            {/* Highly Reflective Mirror Floor */}
+            {/* Highly Reflective Mirror Floor (SSR) */}
             <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
-              <mesh receiveShadow>
+              <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
+                <planeGeometry args={[200, 200]} />
+                <MeshReflectorMaterial
+                  blur={[300, 100]}
+                  resolution={1024}
+                  mixBlur={1}
+                  mixStrength={50}
+                  roughness={1}
+                  depthScale={1.2}
+                  minDepthThreshold={0.4}
+                  maxDepthThreshold={1.4}
+                  color="#151520"
+                  metalness={0.5}
+                  mirror={1}
+                />
+              </mesh>
+              {/* Invisible floor collider payload */}
+              <mesh visible={false}>
                 <boxGeometry args={[200, 1, 200]} />
-                <meshStandardMaterial color="#050505" roughness={0.05} metalness={0.8} />
               </mesh>
             </RigidBody>
           </Physics>
+
+          {/* Environment Global Illumination Map */}
+          <Environment preset="night" />
 
           {/* Neon Grid overlaying the floor */}
           <Grid 

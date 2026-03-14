@@ -5,7 +5,7 @@ export interface EnemyData {
   position: [number, number, number];
 }
 
-export interface DebrisData {
+export interface ExplosionData {
   id: number;
   position: [number, number, number];
   color: string;
@@ -14,11 +14,12 @@ export interface DebrisData {
 interface GameState {
   score: number;
   enemies: EnemyData[];
-  debris: DebrisData[];
+  explosions: ExplosionData[];
   incScore: (val: number) => void;
   removeEnemy: (id: number) => void;
   spawnEnemies: () => void;
-  addDebris: (position: [number, number, number], color: string, count: number) => void;
+  addExplosion: (position: [number, number, number], color: string) => void;
+  removeExplosion: (id: number) => void;
 }
 
 const INITIAL_ENEMIES: EnemyData[] = [
@@ -32,30 +33,32 @@ const INITIAL_ENEMIES: EnemyData[] = [
 export const useStore = create<GameState>((set) => ({
   score: 0,
   enemies: INITIAL_ENEMIES,
-  debris: [],
+  explosions: [],
   incScore: (val) => set((state) => ({ score: state.score + val })),
   removeEnemy: (id) => set((state) => ({
     enemies: state.enemies.filter(e => e.id !== id)
   })),
-  spawnEnemies: () => set((state) => ({
-    enemies: [
-      ...state.enemies,
-      {
-        id: Date.now(),
-        position: [
-          (Math.random() - 0.5) * 40,
-          Math.random() * 10 + 2,
-          (Math.random() - 0.5) * 40
-        ]
-      }
-    ]
+  spawnEnemies: () => set((state) => {
+    // Only spawn if we are under a threshold to keep it playable
+    if (state.enemies.length > 30) return state;
+    return {
+      enemies: [
+        ...state.enemies,
+        {
+          id: Date.now(),
+          position: [
+            (Math.random() - 0.5) * 60,
+            Math.random() * 10 + 2,
+            (Math.random() - 0.5) * 60
+          ]
+        }
+      ]
+    };
+  }),
+  addExplosion: (position, color) => set((state) => ({
+    explosions: [...state.explosions, { id: Date.now() + Math.random(), position, color }]
   })),
-  addDebris: (position, color, count) => set((state) => {
-    const newDebris = Array.from({ length: count }).map((_, i) => ({
-      id: Date.now() + i,
-      position,
-      color
-    }));
-    return { debris: [...state.debris, ...newDebris].slice(-100) }; // Keep max 100 particles
-  })
+  removeExplosion: (id) => set((state) => ({
+    explosions: state.explosions.filter(e => e.id !== id)
+  }))
 }));

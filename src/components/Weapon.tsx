@@ -39,10 +39,10 @@ export function Weapon() {
                 useStore.getState().removeEnemy(obj.userData.id);
                 useStore.getState().incScore(100);
                 
-                // Spawn Physical GPU Debris
+                // Spawn pure GPU Particles Explosion
                 const pos = new THREE.Vector3();
                 obj.getWorldPosition(pos);
-                useStore.getState().addDebris([pos.x, pos.y, pos.z], "#ff0044", 8);
+                useStore.getState().addExplosion([pos.x, pos.y, pos.z], "#ff0040");
 
                 break; // Stop at the first hit
               }
