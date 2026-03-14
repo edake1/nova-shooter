@@ -15,7 +15,7 @@ import { useStore } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 
 export default function Game() {
-  const { score, isPaused, setPaused } = useStore();
+  const { score, level, killsThisLevel, isPaused, setPaused } = useStore();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -140,6 +140,10 @@ export default function Game() {
           <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
           
           <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
+             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20">
+                <span className="text-yellow-400/70 font-mono text-xs uppercase">Level {level}</span>
+                <span className="text-yellow-400 font-mono font-bold">{killsThisLevel} / {level * 10} KILLS</span>
+             </div>
              <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10">
                 <span className="text-cyan-400/70 font-mono text-xs uppercase">Target Intel</span>
                 <span className="text-cyan-300 font-mono font-bold">{score.toString().padStart(4, '0')} PTS</span>
@@ -155,6 +159,25 @@ export default function Game() {
             SYS.OP: W A S D / SPACE / CLICK
           </div>
         </div>
+      </div>
+      
+      <div className="absolute top-8 right-8 z-50 pointer-events-auto">
+        <button 
+          onClick={() => {
+            if (isPaused) {
+              if (document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+              }
+            } else {
+              if (document.pointerLockElement) {
+                document.exitPointerLock();
+              }
+            }
+          }}
+          className="glass-panel px-6 py-3 border border-cyan-500/50 text-cyan-400 font-orbitron font-bold tracking-widest text-sm hover:bg-cyan-500/20 transition-colors uppercase"
+        >
+          {isPaused ? "▶ RESUME" : "⏸ PAUSE / MENU (ESC)"}
+        </button>
       </div>
       
       <div className="absolute bottom-8 right-8 pointer-events-none">

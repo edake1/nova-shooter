@@ -18,6 +18,8 @@ export interface ExplosionData {
 
 interface GameState {
   score: number;
+  level: number;
+  killsThisLevel: number;
   enemies: EnemyData[];
   explosions: ExplosionData[];
   isPaused: boolean;
@@ -40,6 +42,8 @@ const INITIAL_ENEMIES: EnemyData[] = [
 
 export const useStore = create<GameState>((set) => ({
   score: 0,
+  level: 1,
+  killsThisLevel: 0,
   enemies: INITIAL_ENEMIES,
   explosions: [],
   isPaused: true,
@@ -48,17 +52,40 @@ export const useStore = create<GameState>((set) => ({
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e)
   })),
-  removeEnemy: (id) => set((state) => ({
-    enemies: state.enemies.filter(e => e.id !== id)
-  })),
+  removeEnemy: (id) => set((state) => {
+    const newEnemies = state.enemies.filter(e => e.id !== id);
+    if (newEnemies.length < state.enemies.length) {
+      const kills = state.killsThisLevel + 1;
+      const requiredKills = state.level * 10;
+      if (kills >= requiredKills) {
+        return {
+          enemies: newEnemies,
+          killsThisLevel: 0,
+          level: Math.min(state.level + 1, 10)
+        };
+      }
+      return {
+        enemies: newEnemies,
+        killsThisLevel: kills
+      };
+    }
+    return { enemies: newEnemies };
+  }),
   spawnEnemies: () => set((state) => {
-    // Only spawn if we are under a threshold to keep it playable
-    if (state.enemies.length > 50) return state;
+    const maxEnemies = 10 + state.level * 5;
+    if (state.enemies.length > maxEnemies) return state;
     
-    // Weighted probabilities
-    const types: EnemyType[] = ['swarmer', 'swarmer', 'swarmer', 'swarmer', 'bomber', 'bomber', 'juggernaut'];
+    // Spawn tougher enemies based on level
+    const types: EnemyType[] = ['swarmer', 'swarmer', 'swarmer'];
+    if (state.level > 2) types.push('bomber', 'bomber');
+    if (state.level > 4) types.push('juggernaut');
+    if (state.level > 6) types.push('juggernaut', 'bomber');
+    
     const type = types[Math.floor(Math.random() * types.length)];
-    const maxHealth = type === 'juggernaut' ? 5 : type === 'bomber' ? 2 : 1;
+    // Scale enemy health slightly with level
+    const healthMultiplier = 1 + (state.level * 0.2);
+    const baseHealth = type === 'juggernaut' ? 5 : type === 'bomber' ? 2 : 1;
+    const maxHealth = Math.floor(baseHealth * healthMultiplier);
 
     return {
       enemies: [
