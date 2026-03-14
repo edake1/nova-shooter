@@ -6,7 +6,7 @@ import { Physics, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
@@ -16,6 +16,11 @@ import { PauseMenu } from "@/components/PauseMenu";
 
 export default function Game() {
   const { score, level, killsThisLevel, isPaused, setPaused } = useStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -34,7 +39,7 @@ export default function Game() {
 
   return (
     <main className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
-      <Canvas shadows camera={{ fov: 75 }}>
+      <Canvas shadows camera={{ fov: 75 }} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }}>
         {/* Environment Settings */}
         <color attach="background" args={["#030308"]} />
         <fog attach="fog" args={["#030308", 5, 40]} />
@@ -124,68 +129,72 @@ export default function Game() {
         />
       </Canvas>
 
-      {/* Cyberpunk HUD Overlay */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-        {/* Dynamic Crosshair */}
-        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#00ffff]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-cyan-400/50 rounded-full animate-[spin_4s_linear_infinite]" />
-      </div>
-      
-      <div className="absolute top-8 left-8 pointer-events-none flex flex-col gap-4 z-50">
-        {/* God Tier Labels & Glassmorphism */}
-        <div className="glass-panel p-6 w-80">
-          <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-5xl tracking-tighter italic glass-text">
-            NOVA
-          </h1>
-          <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
-          
-          <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
-             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20">
-                <span className="text-yellow-400/70 font-mono text-xs uppercase">Level {level}</span>
-                <span className="text-yellow-400 font-mono font-bold">{killsThisLevel} / {level * 10} KILLS</span>
-             </div>
-             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10">
-                <span className="text-cyan-400/70 font-mono text-xs uppercase">Target Intel</span>
-                <span className="text-cyan-300 font-mono font-bold">{score.toString().padStart(4, '0')} PTS</span>
-             </div>
-             
-             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-purple-500/10">
-                <span className="text-purple-400/70 font-mono text-xs uppercase">Threat Level</span>
-                <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary">CRITICAL</span>
-             </div>
+      {/* Cyberpunk HUD Overlay (Client-only to avoid hydration mismatch) */}
+      {mounted && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            {/* Dynamic Crosshair */}
+            <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#00ffff]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-cyan-400/50 rounded-full animate-[spin_4s_linear_infinite]" />
           </div>
           
-          <div className="mt-4 text-cyan-400/50 font-mono text-[10px] tracking-widest uppercase">
-            SYS.OP: W A S D / SPACE / CLICK
+          <div className="absolute top-8 left-8 pointer-events-none flex flex-col gap-4">
+            {/* God Tier Labels & Glassmorphism */}
+            <div className="glass-panel p-6 w-80">
+              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-5xl tracking-tighter italic glass-text">
+                NOVA
+              </h1>
+              <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
+              
+              <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
+                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20">
+                    <span className="text-yellow-400/70 font-mono text-xs uppercase">Level {level}</span>
+                    <span className="text-yellow-400 font-mono font-bold">{killsThisLevel} / {level * 10} KILLS</span>
+                 </div>
+                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10">
+                    <span className="text-cyan-400/70 font-mono text-xs uppercase">Target Intel</span>
+                    <span className="text-cyan-300 font-mono font-bold">{score.toString().padStart(4, '0')} PTS</span>
+                 </div>
+                 
+                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-purple-500/10">
+                    <span className="text-purple-400/70 font-mono text-xs uppercase">Threat Level</span>
+                    <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary">CRITICAL</span>
+                 </div>
+              </div>
+              
+              <div className="mt-4 text-cyan-400/50 font-mono text-[10px] tracking-widest uppercase">
+                SYS.OP: W A S D / SPACE / CLICK
+              </div>
+            </div>
+          </div>
+          
+          <div className="absolute top-8 right-8 pointer-events-auto">
+            <button 
+              onClick={() => {
+                if (isPaused) {
+                  if (document.pointerLockElement !== document.body) {
+                    document.body.requestPointerLock();
+                  }
+                } else {
+                  if (document.pointerLockElement) {
+                    document.exitPointerLock();
+                  }
+                }
+              }}
+              className="glass-panel px-6 py-3 border border-cyan-500/50 text-cyan-400 font-orbitron font-bold tracking-widest text-sm hover:bg-cyan-500/20 transition-colors uppercase cursor-pointer"
+            >
+              {isPaused ? "▶ RESUME" : "⏸ MENU (ESC)"}
+            </button>
+          </div>
+          
+          <div className="absolute bottom-8 right-8 pointer-events-none">
+             <div className="text-cyan-400 font-mono text-xs tracking-widest text-right uppercase">Weapon // Plasmacaster</div>
+             <div className="text-white font-black text-3xl italic tracking-tighter text-right">CAPACITY: ∞</div>
           </div>
         </div>
-      </div>
-      
-      <div className="absolute top-8 right-8 z-50 pointer-events-auto">
-        <button 
-          onClick={() => {
-            if (isPaused) {
-              if (document.pointerLockElement !== document.body) {
-                document.body.requestPointerLock();
-              }
-            } else {
-              if (document.pointerLockElement) {
-                document.exitPointerLock();
-              }
-            }
-          }}
-          className="glass-panel px-6 py-3 border border-cyan-500/50 text-cyan-400 font-orbitron font-bold tracking-widest text-sm hover:bg-cyan-500/20 transition-colors uppercase"
-        >
-          {isPaused ? "▶ RESUME" : "⏸ PAUSE / MENU (ESC)"}
-        </button>
-      </div>
-      
-      <div className="absolute bottom-8 right-8 pointer-events-none">
-         <div className="text-cyan-400 font-mono text-xs tracking-widest text-right uppercase">Weapon // Plasmacaster</div>
-         <div className="text-white font-black text-3xl italic tracking-tighter text-right">CAPACITY: ∞</div>
-      </div>
+      )}
 
-      {isPaused && <PauseMenu />}
+      {mounted && isPaused && <PauseMenu />}
     </main>
   );
 }
