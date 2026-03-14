@@ -20,12 +20,14 @@ interface GameState {
   score: number;
   enemies: EnemyData[];
   explosions: ExplosionData[];
+  isPaused: boolean;
   incScore: (val: number) => void;
   damageEnemy: (id: number, amount: number) => void;
   removeEnemy: (id: number) => void;
   spawnEnemies: () => void;
   addExplosion: (position: [number, number, number], color: string) => void;
   removeExplosion: (id: number) => void;
+  setPaused: (val: boolean) => void;
 }
 
 const INITIAL_ENEMIES: EnemyData[] = [
@@ -40,7 +42,9 @@ export const useStore = create<GameState>((set) => ({
   score: 0,
   enemies: INITIAL_ENEMIES,
   explosions: [],
+  isPaused: false,
   incScore: (val) => set((state) => ({ score: state.score + val })),
+  setPaused: (val) => set({ isPaused: val }),
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e)
   })),

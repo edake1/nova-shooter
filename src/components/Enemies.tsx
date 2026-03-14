@@ -12,7 +12,9 @@ export function Enemies() {
   // Adaptive endless spawning
   useEffect(() => {
     const interval = setInterval(() => {
-      spawnEnemies();
+      if (!useStore.getState().isPaused) {
+        spawnEnemies();
+      }
     }, 3000); // New enemy every 3 seconds
     return () => clearInterval(interval);
   }, [spawnEnemies]);
@@ -50,6 +52,8 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const coreIntensity = 8 * intensityMultiplier;
 
   useFrame((state) => {
+    if (useStore.getState().isPaused) return;
+
     if (meshRef.current && rigidBodyRef.current) {
       // Rotate the enemy
       meshRef.current.rotation.x += traits.rotSpeed;

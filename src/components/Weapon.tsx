@@ -12,6 +12,8 @@ export function Weapon() {
 
   useEffect(() => {
     const handlePointerDown = (e: MouseEvent) => {
+      if (useStore.getState().isPaused) return;
+
       // Only shoot if the pointer is locked
       if (document.pointerLockElement) {
         if (e.button === 0) {

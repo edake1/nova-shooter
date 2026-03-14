@@ -6,15 +6,27 @@ import { Physics, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { useStore } from "@/store";
+import { PauseMenu } from "@/components/PauseMenu";
 
 export default function Game() {
-  const score = useStore((state) => state.score);
+  const { score, isPaused, setPaused } = useStore();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        e.preventDefault();
+        setPaused(!useStore.getState().isPaused);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setPaused]);
 
   return (
     <main className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
@@ -142,6 +154,8 @@ export default function Game() {
          <div className="text-cyan-400 font-mono text-xs tracking-widest text-right uppercase">Weapon // Plasmacaster</div>
          <div className="text-white font-black text-3xl italic tracking-tighter text-right">CAPACITY: ∞</div>
       </div>
+
+      {isPaused && <PauseMenu />}
     </main>
   );
 }

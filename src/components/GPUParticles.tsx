@@ -41,6 +41,7 @@ function ExplosionEffect({ position, color, id }: { position: [number, number, n
   }, [id, removeExplosion]);
 
   useFrame((state, delta) => {
+    if (useStore.getState().isPaused) return;
     if (materialRef.current) {
         materialRef.current.uniforms.uTime.value += delta;
     }
