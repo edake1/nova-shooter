@@ -1,65 +1,128 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { Canvas } from "@react-three/fiber";
+import { PointerLockControls, Grid, Stars } from "@react-three/drei";
+import { Physics, RigidBody } from "@react-three/rapier";
+import * as THREE from "three";
+import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
+import { BlendFunction } from "postprocessing";
+import { Suspense } from "react";
+import { Player } from "@/components/Player";
+import { Weapon } from "@/components/Weapon";
+import { Enemies } from "@/components/Enemies";
+import { Debris } from "@/components/Debris";
+import { useStore } from "@/store";
+
+export default function Game() {
+  const score = useStore((state) => state.score);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
+      <Canvas shadows camera={{ fov: 75 }}>
+        {/* Environment Settings */}
+        <color attach="background" args={["#030308"]} />
+        <fog attach="fog" args={["#030308", 5, 40]} />
+        <ambientLight intensity={0.2} />
+        <directionalLight castShadow position={[10, 20, 10]} intensity={1.5} color="#4455ff" />
+        <pointLight position={[-10, -10, -10]} intensity={2} color="#ff0044" />
+
+        <Suspense fallback={null}>
+          <Physics debug={false}>
+            {/* Player & Weapon */}
+            <Player />
+            <Weapon />
+            
+            {/* Enemies */}
+            <Enemies />
+
+            {/* GPU Particles (Debris) */}
+            <Debris />
+
+            {/* Giant Monolith Obstacles */}
+            <RigidBody type="fixed" position={[0, 4, -15]} colliders="cuboid">
+              <mesh castShadow receiveShadow>
+                <boxGeometry args={[4, 10, 4]} />
+                <meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} />
+              </mesh>
+            </RigidBody>
+            <RigidBody type="fixed" position={[12, 3, -5]} colliders="cuboid">
+              <mesh castShadow receiveShadow>
+                <boxGeometry args={[3, 6, 3]} />
+                <meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} />
+              </mesh>
+            </RigidBody>
+
+            {/* Highly Reflective Mirror Floor */}
+            <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
+              <mesh receiveShadow>
+                <boxGeometry args={[200, 1, 200]} />
+                <meshStandardMaterial color="#050505" roughness={0.05} metalness={0.8} />
+              </mesh>
+            </RigidBody>
+          </Physics>
+
+          {/* Neon Grid overlaying the floor */}
+          <Grid 
+            position={[0, 0.01, 0]} 
+            args={[200, 200]} 
+            cellColor="#00ffff" 
+            sectionColor="#ff00ff" 
+            cellThickness={0.5}
+            sectionThickness={1.0}
+            fadeDistance={40} 
+          />
+
+          <Stars radius={50} depth={50} count={3000} factor={2} fade speed={0.5} />
+        </Suspense>
+
+        {/* Post-Processing Pipeline! The 2026 Tech */}
+        <EffectComposer disableNormalPass>
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
+          <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(0.002, 0.002)} />
+          <Vignette eskil={false} offset={0.1} darkness={1.1} />
+          <Noise opacity={0.03} />
+        </EffectComposer>
+
+        <PointerLockControls />
+      </Canvas>
+
+      {/* Cyberpunk HUD Overlay */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+        {/* Dynamic Crosshair */}
+        <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#00ffff]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-cyan-400/50 rounded-full animate-[spin_4s_linear_infinite]" />
+      </div>
+      
+      <div className="absolute top-8 left-8 pointer-events-none flex flex-col gap-4 z-50">
+        {/* God Tier Labels & Glassmorphism */}
+        <div className="glass-panel p-6 w-80">
+          <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-5xl tracking-tighter italic glass-text">
+            NOVA
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
+          
+          <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
+             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10">
+                <span className="text-cyan-400/70 font-mono text-xs uppercase">Target Intel</span>
+                <span className="text-cyan-300 font-mono font-bold">{score.toString().padStart(4, '0')} PTS</span>
+             </div>
+             
+             <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-purple-500/10">
+                <span className="text-purple-400/70 font-mono text-xs uppercase">Threat Level</span>
+                <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary">CRITICAL</span>
+             </div>
+          </div>
+          
+          <div className="mt-4 text-cyan-400/50 font-mono text-[10px] tracking-widest uppercase">
+            SYS.OP: W A S D / SPACE / CLICK
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </div>
+      
+      <div className="absolute bottom-8 right-8 pointer-events-none">
+         <div className="text-cyan-400 font-mono text-xs tracking-widest text-right uppercase">Weapon // Plasmacaster</div>
+         <div className="text-white font-black text-3xl italic tracking-tighter text-right">CAPACITY: ∞</div>
+      </div>
+    </main>
   );
 }

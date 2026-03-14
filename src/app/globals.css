@@ -1,26 +1,32 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background-color: #02040a;
+  font-family: 'Rajdhani', sans-serif;
+  color: white;
+  overflow: hidden;
+}
+
+.font-orbitron { font-family: 'Orbitron', sans-serif; }
+
+.glass-panel {
+  background: rgba(10, 20, 30, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8),
+              inset 0 0 32px rgba(0, 255, 255, 0.05);
+  border-radius: 20px;
+}
+
+.glass-text {
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.8), 0 0 24px rgba(0, 255, 255, 0.4);
+}
+
+.glass-text-secondary {
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.8), 0 0 24px rgba(168, 85, 247, 0.4);
 }
