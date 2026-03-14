@@ -55,7 +55,7 @@ export default function Game() {
             {/* Highly Reflective Mirror Floor (SSR) */}
             <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
               <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
-                <planeGeometry args={[200, 200]} />
+                <planeGeometry args={[5000, 5000]} />
                 <MeshReflectorMaterial
                   blur={[300, 100]}
                   resolution={1024}
@@ -72,7 +72,7 @@ export default function Game() {
               </mesh>
               {/* Invisible floor collider payload */}
               <mesh visible={false}>
-                <boxGeometry args={[200, 1, 200]} />
+                <boxGeometry args={[5000, 1, 5000]} />
               </mesh>
             </RigidBody>
           </Physics>
@@ -83,7 +83,7 @@ export default function Game() {
           {/* Neon Grid overlaying the floor */}
           <Grid 
             position={[0, 0.01, 0]} 
-            args={[200, 200]} 
+            args={[5000, 5000]} 
             cellColor="#00ffff" 
             sectionColor="#ff00ff" 
             cellThickness={0.5}
