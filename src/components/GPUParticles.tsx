@@ -104,9 +104,9 @@ function ExplosionEffect({ position, color, id }: { position: [number, number, n
   return (
     <points>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={PARTICLES_PER_EXPLOSION} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-velocity" count={PARTICLES_PER_EXPLOSION} array={velocities} itemSize={3} />
-        <bufferAttribute attach="attributes-lifetime" count={PARTICLES_PER_EXPLOSION} array={lifetimes} itemSize={1} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-velocity" args={[velocities, 3]} />
+        <bufferAttribute attach="attributes-lifetime" args={[lifetimes, 1]} />
       </bufferGeometry>
       <shaderMaterial 
         ref={materialRef}

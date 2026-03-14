@@ -42,8 +42,13 @@ function Enemy({ id, position }: { id: number; position: [number, number, number
       const currentPos = rigidBodyRef.current.translation();
       
       const dir = new THREE.Vector3()
-        .subVectors(playerPos, new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z))
-        .normalize();
+        .subVectors(playerPos, new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z));
+        
+      if (dir.lengthSq() > 0.001) {
+        dir.normalize();
+      } else {
+        dir.set(0, 0, 1);
+      }
       
       // Preserve Y to let physics gravity handle bounding
       dir.y = 0;
