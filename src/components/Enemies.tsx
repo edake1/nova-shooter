@@ -4,6 +4,7 @@ import { RigidBody } from "@react-three/rapier";
 import type { RapierRigidBody } from "@react-three/rapier";
 import { useStore, EnemyData } from "@/store";
 import * as THREE from "three";
+import { audioManager } from "@/lib/audio";
 
 // === ENEMY TRAIT CONFIG ===
 interface EnemyTraits {
@@ -125,6 +126,11 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const teleportTimerRef = useRef(performance.now() + 3000 + Math.random() * 2000);
   
   const traits = ENEMY_TRAITS[enemy.type] ?? ENEMY_TRAITS.swarmer;
+  
+  // Play spawn sound when enemy mounts
+  useEffect(() => {
+    audioManager.playEnemySpawn(enemy.type);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Stable flanking angle per-enemy — causes natural spread around the player
   const flankAngle = useMemo(() => {
@@ -280,6 +286,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
               [fireDir.x * traits.projectileSpeed, fireDir.y * traits.projectileSpeed, fireDir.z * traits.projectileSpeed],
               traits.projectileDamage, traits.emissive
             );
+            audioManager.playEnemyAttack(enemy.type);
             lastFireAtRef.current = now;
           }
           return;
@@ -315,6 +322,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
           [fireDir.x * traits.projectileSpeed, fireDir.y * traits.projectileSpeed, fireDir.z * traits.projectileSpeed],
           traits.projectileDamage, traits.emissive
         );
+        audioManager.playEnemyAttack(enemy.type);
       }
 
       // Animate orbiting/spinning sub-parts

@@ -490,8 +490,13 @@ export const useStore = create<GameState>((set) => ({
     damageDealt: state.damageDealt + amount,
   })),
   removeEnemy: (id) => set((state) => {
+    const killed = state.enemies.find(e => e.id === id);
     const newEnemies = state.enemies.filter(e => e.id !== id);
     if (newEnemies.length < state.enemies.length) {
+      // Dispatch death event for audio system
+      if (killed) {
+        window.dispatchEvent(new CustomEvent('nova:enemydeath', { detail: { type: killed.type } }));
+      }
       const kills = state.killsThisLevel + 1;
       const newTotal = state.totalKills + 1;
       const requiredKills = state.level * 10;

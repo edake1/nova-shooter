@@ -66,6 +66,7 @@ import type { HighScoreEntry } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 import { WeaponWheel } from "@/components/WeaponWheel";
 import { Minimap } from "@/components/Minimap";
+import { audioManager } from "@/lib/audio";
 
 const RETICLE_PROFILES = {
   pulse_pistol:     { label: "KINETIC",      color: "#e2e8f0", size: 86 },
@@ -289,6 +290,31 @@ export default function Game() {
     return () => clearInterval(id);
   }, [gamePhase]);
 
+  // ─── Audio: start/stop/pause music based on game phase ──────────────────
+  useEffect(() => {
+    if (gamePhase === 'playing') {
+      audioManager.start();
+      audioManager.resume();
+    } else if (gamePhase === 'paused') {
+      audioManager.pause();
+    } else if (gamePhase === 'gameover' || gamePhase === 'menu') {
+      audioManager.stop();
+    }
+  }, [gamePhase]);
+
+  // ─── Audio: dynamic intensity based on enemy count + boss presence ──────
+  useEffect(() => {
+    if (gamePhase !== 'playing') return;
+    const hasBoss = enemies.some((e) => e.type === 'juggernaut' || e.type === 'hive_queen');
+    if (hasBoss) {
+      audioManager.setIntensity('boss');
+    } else if (enemies.length >= 5) {
+      audioManager.setIntensity('combat');
+    } else {
+      audioManager.setIntensity('calm');
+    }
+  }, [gamePhase, enemies]);
+
   // Generate particles only on client (Math.random is fine post-hydration)
   const homeParticles = useMemo(() => {
     if (!mounted) return [];
@@ -510,9 +536,17 @@ export default function Game() {
     window.addEventListener("nova:hit", handleHit as EventListener);
     window.addEventListener("nova:incoming", handleIncoming as EventListener);
 
+    // Enemy death sounds
+    const handleEnemyDeath = (e: Event) => {
+      const { type } = (e as CustomEvent).detail;
+      if (type) audioManager.playEnemyDeath(type);
+    };
+    window.addEventListener("nova:enemydeath", handleEnemyDeath as EventListener);
+
     return () => {
       window.removeEventListener("nova:hit", handleHit as EventListener);
       window.removeEventListener("nova:incoming", handleIncoming as EventListener);
+      window.removeEventListener("nova:enemydeath", handleEnemyDeath as EventListener);
     };
   }, []);
 
