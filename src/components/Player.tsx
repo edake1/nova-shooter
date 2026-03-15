@@ -67,7 +67,9 @@ export function Player() {
     frontVector.set(0, 0, Number(backward) - Number(forward));
     sideVector.set(Number(left) - Number(right), 0, 0);
 
-    const speed = sprint ? SPEED * SPRINT_MULTIPLIER : SPEED;
+    const speedBuff = useStore.getState().activeBuffs.find(b => b.type === 'speed_boost');
+    const buffMultiplier = speedBuff ? speedBuff.value : 1;
+    const speed = (sprint ? SPEED * SPRINT_MULTIPLIER : SPEED) * buffMultiplier;
     direction
       .subVectors(frontVector, sideVector)
       .normalize()

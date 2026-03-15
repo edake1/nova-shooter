@@ -45,6 +45,48 @@ export function getUpgradeCost(base: number, currentLevel: number): number {
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover';
 
+// === LOOT DROP SYSTEM ===
+export type LootType = 'health' | 'shield' | 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'intel_cache';
+
+export interface LootDrop {
+  id: number;
+  position: [number, number, number];
+  type: LootType;
+  spawnedAt: number; // performance.now()
+}
+
+export interface ActiveBuff {
+  type: 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'shield';
+  expiresAt: number; // performance.now() + duration
+  value: number;
+}
+
+export const LOOT_CONFIG: Record<LootType, { color: string; label: string; dropWeight: number }> = {
+  health:       { color: '#22c55e', label: 'HEALTH',       dropWeight: 30 },
+  shield:       { color: '#3b82f6', label: 'SHIELD',       dropWeight: 15 },
+  damage_boost: { color: '#ef4444', label: 'DAMAGE BOOST', dropWeight: 12 },
+  speed_boost:  { color: '#eab308', label: 'SPEED BOOST',  dropWeight: 10 },
+  ammo_surge:   { color: '#f97316', label: 'AMMO SURGE',   dropWeight: 8 },
+  intel_cache:  { color: '#06b6d4', label: 'INTEL',        dropWeight: 25 },
+};
+
+// Drop chance per enemy type
+const DROP_CHANCE: Record<EnemyType, number> = { swarmer: 0.2, bomber: 0.35, juggernaut: 0.5 };
+
+function rollLootDrop(enemyType: EnemyType, position: [number, number, number]): LootDrop | null {
+  if (Math.random() > DROP_CHANCE[enemyType]) return null;
+  // Weighted random selection
+  const entries = Object.entries(LOOT_CONFIG) as [LootType, typeof LOOT_CONFIG[LootType]][];
+  const totalWeight = entries.reduce((s, [, v]) => s + v.dropWeight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const [type, cfg] of entries) {
+    roll -= cfg.dropWeight;
+    if (roll <= 0) return { id: nextId(), position: [...position] as [number, number, number], type, spawnedAt: performance.now() };
+  }
+  return { id: nextId(), position: [...position] as [number, number, number], type: 'health', spawnedAt: performance.now() };
+}
+// === END LOOT ===
+
 export interface EnemyData {
   id: number;
   position: [number, number, number];
@@ -101,6 +143,14 @@ interface GameState {
   cycleReticleScale: () => void;
   toggleHighContrastReticle: () => void;
   toggleReducedMotion: () => void;
+  // Loot
+  lootDrops: LootDrop[];
+  activeBuffs: ActiveBuff[];
+  shieldHP: number;
+  spawnLootDrop: (enemyType: EnemyType, position: [number, number, number]) => void;
+  collectLoot: (id: number) => void;
+  removeLootDrop: (id: number) => void;
+  tickBuffs: () => void;
 }
 
 const INITIAL_ENEMIES: EnemyData[] = [
@@ -139,6 +189,10 @@ export const useStore = create<GameState>((set) => ({
     highContrastReticle: false,
     reducedMotion: false
   },
+  // Loot state
+  lootDrops: [],
+  activeBuffs: [],
+  shieldHP: 0,
   incScore: (val) => set((state) => ({ score: state.score + val })),
   setPaused: (val) => set({ isPaused: val }),
   setGamePhase: (phase) => set({ gamePhase: phase, isPaused: phase !== 'playing', isGameOver: phase === 'gameover' }),
@@ -160,14 +214,25 @@ export const useStore = create<GameState>((set) => ({
       { id: nextId(), position: [-18, 5, -28] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
     ],
     explosions: [],
+    lootDrops: [],
+    activeBuffs: [],
+    shieldHP: 0,
   }),
 
   damagePlayer: (amount) => set((state) => {
-    const newHealth = Math.max(0, state.playerHealth - amount);
-    if (newHealth <= 0) {
-      return { playerHealth: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
+    let remaining = amount;
+    let newShield = state.shieldHP;
+    // Shield absorbs damage first
+    if (newShield > 0) {
+      const absorbed = Math.min(newShield, remaining);
+      newShield -= absorbed;
+      remaining -= absorbed;
     }
-    return { playerHealth: newHealth };
+    const newHealth = Math.max(0, state.playerHealth - remaining);
+    if (newHealth <= 0) {
+      return { playerHealth: 0, shieldHP: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
+    }
+    return { playerHealth: newHealth, shieldHP: newShield };
   }),
 
   resetGame: () => set({
@@ -182,6 +247,9 @@ export const useStore = create<GameState>((set) => ({
       { id: nextId(), position: [-18, 5, -28], type: 'swarmer', health: 1, maxHealth: 1 },
     ],
     explosions: [],
+    lootDrops: [],
+    activeBuffs: [],
+    shieldHP: 0,
     isPaused: true,
     isGameOver: false,
     playerHealth: PLAYER_MAX_HEALTH,
@@ -213,7 +281,9 @@ export const useStore = create<GameState>((set) => ({
   }),
   cycleReticleScale: () => set((state) => {
     const current = state.hudSettings.reticleScale;
-    const next = current < 1.2 ? 1.2 : current < 1.45 ? 1.45 : 1;
+    const steps = [0.6, 0.8, 1.0, 1.2, 1.45];
+    const idx = steps.findIndex(s => current <= s + 0.01);
+    const next = steps[(idx + 1) % steps.length];
     return { hudSettings: { ...state.hudSettings, reticleScale: next } };
   }),
   toggleHighContrastReticle: () => set((state) => ({
@@ -288,10 +358,57 @@ export const useStore = create<GameState>((set) => ({
       ]
     };
   }),
-  addExplosion: (position, color, type = 'plasma') => set((state) => ({
+  addExplosion: (position, color, type = 'energy') => set((state) => ({
     explosions: [...state.explosions, { id: nextId(), position, color, type }]
   })),
   removeExplosion: (id) => set((state) => ({
     explosions: state.explosions.filter(e => e.id !== id)
-  }))
+  })),
+
+  // === LOOT ACTIONS ===
+  spawnLootDrop: (enemyType, position) => set((state) => {
+    const drop = rollLootDrop(enemyType, position);
+    if (!drop) return state;
+    return { lootDrops: [...state.lootDrops, drop] };
+  }),
+
+  collectLoot: (id) => set((state) => {
+    const drop = state.lootDrops.find(d => d.id === id);
+    if (!drop) return state;
+    const newDrops = state.lootDrops.filter(d => d.id !== id);
+    const now = performance.now();
+    switch (drop.type) {
+      case 'health': {
+        const heal = Math.min(50, state.playerMaxHealth - state.playerHealth);
+        return { lootDrops: newDrops, playerHealth: state.playerHealth + heal };
+      }
+      case 'shield':
+        return { lootDrops: newDrops, shieldHP: Math.min(state.shieldHP + 30, 100), activeBuffs: [...state.activeBuffs.filter(b => b.type !== 'shield'), { type: 'shield' as const, expiresAt: now + 30000, value: 30 }] };
+      case 'damage_boost':
+        return { lootDrops: newDrops, activeBuffs: [...state.activeBuffs.filter(b => b.type !== 'damage_boost'), { type: 'damage_boost' as const, expiresAt: now + 10000, value: 1.5 }] };
+      case 'speed_boost':
+        return { lootDrops: newDrops, activeBuffs: [...state.activeBuffs.filter(b => b.type !== 'speed_boost'), { type: 'speed_boost' as const, expiresAt: now + 8000, value: 1.4 }] };
+      case 'ammo_surge':
+        return { lootDrops: newDrops, activeBuffs: [...state.activeBuffs.filter(b => b.type !== 'ammo_surge'), { type: 'ammo_surge' as const, expiresAt: now + 6000, value: 2.0 }] };
+      case 'intel_cache':
+        return { lootDrops: newDrops, score: state.score + 500 };
+      default:
+        return { lootDrops: newDrops };
+    }
+  }),
+
+  removeLootDrop: (id) => set((state) => ({
+    lootDrops: state.lootDrops.filter(d => d.id !== id)
+  })),
+
+  tickBuffs: () => set((state) => {
+    const now = performance.now();
+    const active = state.activeBuffs.filter(b => b.expiresAt > now);
+    const hadShield = state.activeBuffs.some(b => b.type === 'shield');
+    const hasShield = active.some(b => b.type === 'shield');
+    return {
+      activeBuffs: active,
+      shieldHP: hadShield && !hasShield ? 0 : state.shieldHP,
+    };
+  }),
 }));

@@ -34,7 +34,8 @@ import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
-import { useStore } from "@/store";
+import { LootDrops } from "@/components/LootDrops";
+import { useStore, LOOT_CONFIG } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 
 const RETICLE_PROFILES = {
@@ -172,7 +173,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, resetGame, gamePhase, startGame, setGamePhase } = useStore();
+  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -182,8 +183,8 @@ export default function Game() {
   const [hitMarker, setHitMarker] = useState<"hit" | "kill" | null>(null);
   const [incoming, setIncoming] = useState({ left: 0, right: 0, front: 0, back: 0 });
   const [damageFlash, setDamageFlash] = useState(0);
-  const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasmacaster).label;
-  const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasmacaster).color;
+  const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
+  const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
 
   // Player damage flash
@@ -298,6 +299,7 @@ export default function Game() {
         front: Math.max(0, prev.front * 0.86 - 0.01),
         back: Math.max(0, prev.back * 0.86 - 0.01),
       }));
+      tickBuffs();
     }, 40);
 
     return () => window.clearInterval(interval);
@@ -339,6 +341,7 @@ export default function Game() {
             <Weapon />
             <Enemies />
             <GPUParticles />
+            <LootDrops />
 
             <RigidBody type="fixed" position={[0, 4, -15]} colliders="cuboid">
               <mesh castShadow receiveShadow><boxGeometry args={[4, 10, 4]} /><meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} /></mesh>
@@ -441,6 +444,18 @@ export default function Game() {
                 <div className={`h-full transition-all duration-300 ${healthPercent > 60 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : healthPercent > 30 ? 'bg-gradient-to-r from-yellow-500 to-yellow-300' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
                   style={{ width: `${healthPercent}%` }} />
               </div>
+              {shieldHP > 0 && (
+                <div className="mt-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-blue-400/80 font-mono text-xs uppercase">Shield</span>
+                    <span className="font-mono font-bold text-sm text-blue-300">{shieldHP}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-black/50 overflow-hidden border border-blue-400/20">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-300 transition-all duration-300"
+                      style={{ width: `${Math.min(100, (shieldHP / 30) * 100)}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -451,6 +466,24 @@ export default function Game() {
               <div className="text-white font-black text-xl italic tracking-tighter">LVL {weaponLevels[equippedWeapon]}</div>
             </div>
           </div>
+
+          {/* Top-right active buffs */}
+          {activeBuffs.length > 0 && (
+            <div className="absolute top-4 right-4 flex flex-col gap-1.5">
+              {activeBuffs.map((buff) => {
+                const remaining = Math.max(0, Math.ceil((buff.expiresAt - Date.now()) / 1000));
+                const cfg = LOOT_CONFIG[buff.type as keyof typeof LOOT_CONFIG];
+                return (
+                  <div key={buff.type} className="glass-panel px-3 py-1.5 flex items-center gap-2 min-w-[140px]"
+                    style={{ borderColor: cfg?.color ?? '#fff', boxShadow: `0 0 12px ${cfg?.color ?? '#fff'}40` }}>
+                    <div className="w-2 h-2 rounded-full" style={{ background: cfg?.color ?? '#fff' }} />
+                    <span className="font-mono text-xs uppercase tracking-wider text-white/90">{cfg?.label ?? buff.type}</span>
+                    <span className="ml-auto font-mono text-xs font-bold" style={{ color: cfg?.color ?? '#fff' }}>{remaining}s</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -119,6 +119,8 @@ export function Weapon() {
         hitObj.getWorldPosition(worldPos);
         const expColor = enemy.type === "juggernaut" ? "#0088ff" : enemy.type === "bomber" ? "#ffaa00" : "#ff0040";
         state.addExplosion([worldPos.x, worldPos.y, worldPos.z], expColor, explosion);
+        // Loot drop at enemy death position
+        state.spawnLootDrop(enemy.type, [worldPos.x, worldPos.y, worldPos.z]);
       }
       return true;
     }
@@ -153,11 +155,15 @@ export function Weapon() {
       const weaponLevel = state.weaponLevels[weapon];
       const profile = WEAPON_PROFILE[weapon];
       const fireRateMult = 1 + (Math.max(weaponLevel, 1) - 1) * 0.1;
-      const effectiveRate = profile.fireRate / fireRateMult;
+      const ammoSurgeBuff = state.activeBuffs.find(b => b.type === 'ammo_surge');
+      const ammoSurgeMult = ammoSurgeBuff ? ammoSurgeBuff.value : 1;
+      const effectiveRate = profile.fireRate / (fireRateMult * ammoSurgeMult);
       if (now - lastFireRef.current < effectiveRate) return;
       lastFireRef.current = now;
 
-      const damage = getWeaponDamage(weapon, weaponLevel);
+      const damageBuff = state.activeBuffs.find(b => b.type === 'damage_boost');
+      const damageMultiplier = damageBuff ? damageBuff.value : 1;
+      const damage = Math.round(getWeaponDamage(weapon, weaponLevel) * damageMultiplier);
 
       recoilRef.current = 1;
       flashTimerRef.current = 0.05;
