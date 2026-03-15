@@ -126,6 +126,13 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   
   const traits = ENEMY_TRAITS[enemy.type] ?? ENEMY_TRAITS.swarmer;
   
+  // Stable flanking angle per-enemy — causes natural spread around the player
+  const flankAngle = useMemo(() => {
+    // Use enemy ID to get a consistent offset angle
+    const hash = (enemy.id * 2654435761) >>> 0; // Knuth hash
+    return ((hash % 628) / 100) - Math.PI; // -PI to +PI
+  }, [enemy.id]);
+  
   // Pre-allocate vectors ONCE — reused every frame (zero GC pressure)
   const vecs = useMemo(() => ({
     dir: new THREE.Vector3(),
@@ -190,6 +197,13 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       let moveDir = vecs.dir.clone();
       moveDir.y = 0;
       let speed = traits.speed;
+
+      // --- Flanking: swarmers approach from offset angles ---
+      if (enemy.type === 'swarmer' && distanceToPlayer > 5) {
+        // Rotate approach vector by flanking angle — wider spread when far, tighter when close
+        const flankStrength = Math.min(1, distanceToPlayer / 20) * 0.6;
+        moveDir.applyAxisAngle(vecs.up, flankAngle * flankStrength);
+      }
 
       if (enemy.type === 'hive_queen') {
         // HIVE QUEEN: stationary, spawns 2 swarmers every 5s
@@ -271,18 +285,20 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
           return;
         }
       } else if (traits.ranged && traits.preferredRange > 0) {
-        // RANGED AI: maintain preferred distance
+        // RANGED AI: maintain preferred distance + orbit player
         if (distanceToPlayer < traits.preferredRange * 0.6) {
           moveDir.multiplyScalar(-1); // back away
         } else if (distanceToPlayer > traits.preferredRange * 1.3) {
           // approach (moveDir is already toward player)
         } else {
-          // strafe — orbit the player
+          // Strafe — orbit the player using flanking angle direction
           const strafe = new THREE.Vector3(-moveDir.z, 0, moveDir.x);
+          // Use flankAngle sign to determine orbit direction (CW vs CCW)
+          strafe.multiplyScalar(flankAngle > 0 ? 1 : -1);
           moveDir.copy(strafe);
           speed = traits.speed * 0.7;
         }
-      } else {
+      } else if (enemy.type !== 'swarmer') {
         meshRef.current.position.set(0, 0, 0);
       }
 
