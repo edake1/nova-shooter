@@ -1,44 +1,104 @@
 "use client";
 
-import { useStore } from "@/store";
+import { useStore, ExplosionType } from "@/store";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 
-const PARTICLES_PER_EXPLOSION = 5000;
+// Weapon-class kill effect profiles
+type FxProfile = { count: number; speed: number; gravity: number; lifetime: number; size: number; spread: 'sphere' | 'ring' | 'column' | 'burst' };
 
-function ExplosionEffect({ position, color, id }: { position: [number, number, number], color: string, id: number }) {
+function getFxProfile(type: ExplosionType): FxProfile {
+  switch (type) {
+    // KINETIC: sharp shatter fragments
+    case 'kinetic':
+      return { count: 3000, speed: 30, gravity: 25, lifetime: 1.2, size: 120, spread: 'sphere' };
+    // ENERGY: white-flash disintegrate, outward scatter
+    case 'energy': case 'beam': case 'photon': case 'arc':
+      return { count: 6000, speed: 20, gravity: 5, lifetime: 1.6, size: 180, spread: 'sphere' };
+    // EXPLOSIVE: heavy ragdoll + lots of debris
+    case 'explosive': case 'singularity':
+      return { count: 8000, speed: 35, gravity: 20, lifetime: 2.0, size: 200, spread: 'sphere' };
+    // SPREAD: many small pieces popping outward in a ring
+    case 'spread': case 'sonic':
+      return { count: 4000, speed: 25, gravity: 15, lifetime: 1.0, size: 100, spread: 'ring' };
+    // TECH: freeze/glitch — slow drift, column shape
+    case 'tech': case 'nano':
+      return { count: 3000, speed: 8, gravity: 2, lifetime: 2.5, size: 160, spread: 'column' };
+    // FORBIDDEN: dramatic slow-mo, radial burst
+    case 'forbidden': case 'warp':
+      return { count: 10000, speed: 15, gravity: 3, lifetime: 3.0, size: 250, spread: 'burst' };
+    // MISC
+    case 'force': case 'swarm': case 'whip':
+      return { count: 4000, speed: 22, gravity: 12, lifetime: 1.4, size: 140, spread: 'sphere' };
+    default:
+      return { count: 5000, speed: 25, gravity: 15, lifetime: 1.5, size: 150, spread: 'sphere' };
+  }
+}
+
+function ExplosionEffect({ position, color, id, type }: { position: [number, number, number], color: string, id: number, type: ExplosionType }) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const removeExplosion = useStore((state) => state.removeExplosion);
+  const fx = getFxProfile(type);
 
   const [arrays] = useState(() => {
-    const pos = new Float32Array(PARTICLES_PER_EXPLOSION * 3);
-    const vel = new Float32Array(PARTICLES_PER_EXPLOSION * 3);
-    const lts = new Float32Array(PARTICLES_PER_EXPLOSION);
+    const pos = new Float32Array(fx.count * 3);
+    const vel = new Float32Array(fx.count * 3);
+    const lts = new Float32Array(fx.count);
     
-    for (let i = 0; i < PARTICLES_PER_EXPLOSION; i++) {
+    for (let i = 0; i < fx.count; i++) {
         pos[i * 3] = position[0];
         pos[i * 3 + 1] = position[1];
         pos[i * 3 + 2] = position[2];
         
-        const speed = Math.random() * 25;
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = Math.acos(2 * Math.random() - 1);
-        vel[i * 3] = speed * Math.sin(phi) * Math.cos(theta);
-        vel[i * 3 + 1] = speed * Math.sin(phi) * Math.sin(theta);
-        vel[i * 3 + 2] = speed * Math.cos(phi);
+        const speed = Math.random() * fx.speed;
+        let vx: number, vy: number, vz: number;
+
+        if (fx.spread === 'ring') {
+          // Horizontal ring burst
+          const theta = Math.random() * 2 * Math.PI;
+          vx = speed * Math.cos(theta);
+          vy = (Math.random() - 0.3) * speed * 0.3;
+          vz = speed * Math.sin(theta);
+        } else if (fx.spread === 'column') {
+          // Vertical column — mostly upward drift
+          const theta = Math.random() * 2 * Math.PI;
+          const r = Math.random() * speed * 0.3;
+          vx = r * Math.cos(theta);
+          vy = speed * (0.5 + Math.random() * 0.5);
+          vz = r * Math.sin(theta);
+        } else if (fx.spread === 'burst') {
+          // Radial burst — even distribution, slower for dramatic effect
+          const theta = Math.random() * 2 * Math.PI;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const s = speed * (0.3 + Math.random() * 0.7);
+          vx = s * Math.sin(phi) * Math.cos(theta);
+          vy = s * Math.sin(phi) * Math.sin(theta);
+          vz = s * Math.cos(phi);
+        } else {
+          // Default sphere
+          const theta = Math.random() * 2 * Math.PI;
+          const phi = Math.acos(2 * Math.random() - 1);
+          vx = speed * Math.sin(phi) * Math.cos(theta);
+          vy = speed * Math.sin(phi) * Math.sin(theta);
+          vz = speed * Math.cos(phi);
+        }
+
+        vel[i * 3] = vx;
+        vel[i * 3 + 1] = vy;
+        vel[i * 3 + 2] = vz;
         
-        lts[i] = 0.5 + Math.random() * 1.5;
+        lts[i] = (0.3 + Math.random()) * fx.lifetime;
     }
     return [pos, vel, lts];
   });
   const [positions, velocities, lifetimes] = arrays;
 
-  // Clean up explosion from global state after 2 seconds
+  // Clean up explosion from global state after duration
   useEffect(() => {
-    const timer = setTimeout(() => removeExplosion(id), 2000);
+    const timer = setTimeout(() => removeExplosion(id), fx.lifetime * 1200);
     return () => clearTimeout(timer);
-  }, [id, removeExplosion]);
+  }, [id, removeExplosion, fx.lifetime]);
 
   useFrame((state, delta) => {
     if (useStore.getState().isPaused) return;
@@ -49,37 +109,37 @@ function ExplosionEffect({ position, color, id }: { position: [number, number, n
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
-    uColor: { value: new THREE.Color(color) }
-  }), [color]);
+    uColor: { value: new THREE.Color(color) },
+    uGravity: { value: fx.gravity },
+    uSize: { value: fx.size },
+  }), [color, fx.gravity, fx.size]);
 
-  // Completely handled by the GPU - no CPU loops
   const vertexShader = `
     uniform float uTime;
+    uniform float uGravity;
+    uniform float uSize;
     attribute vec3 velocity;
     attribute float lifetime;
     varying float vAlpha;
     varying float vLifetime;
 
     void main() {
-      // Basic Integration: pos = initial_pos + velocity * time
       vec3 newPos = position + velocity * uTime;
       
-      // Gravity affect over time: 0.5 * g * t^2
-      newPos.y -= 15.0 * uTime * uTime * 0.5;
+      // Gravity
+      newPos.y -= uGravity * uTime * uTime * 0.5;
       
-      // Floor collision - simple bounce
+      // Floor collision
       if (newPos.y < 0.1) {
           newPos.y = 0.1 + (0.1 - newPos.y) * 0.5; 
       }
 
-      // Fade out based on calculated particle lifetime
       vAlpha = max(0.0, 1.0 - (uTime / lifetime));
       
       vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
       gl_Position = projectionMatrix * mvPosition;
       
-      // Size scales as it gets further, but also diminishes as it fades
-      gl_PointSize = (150.0 / -mvPosition.z) * vAlpha;
+      gl_PointSize = (uSize / -mvPosition.z) * vAlpha;
     }
   `;
 
@@ -127,7 +187,7 @@ export function GPUParticles() {
   return (
     <>
       {explosions.map((exp) => (
-        <ExplosionEffect key={exp.id} id={exp.id} position={exp.position} color={exp.color} />
+        <ExplosionEffect key={exp.id} id={exp.id} position={exp.position} color={exp.color} type={exp.type} />
       ))}
     </>
   );
