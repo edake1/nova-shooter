@@ -3,7 +3,44 @@
 ## Vision
 Cyberpunk arena FPS with deep weapon progression, enemy variety, and loot mechanics.
 The player should feel their power grow from a single plasma pistol to wielding
-reality-breaking weaponry against overwhelming odds.
+reality-breaking weaponry against overwhelming odds. Infinite replayability through
+escalating waves, diverse enemies with evolving AI, and a deep arsenal that rewards
+exploration and mastery.
+
+### Core Loop
+1. **Fight** — Kill enemies in the arena
+2. **Collect** — Pick up loot drops (HP, buffs, intel)
+3. **Upgrade** — Spend intel to unlock/upgrade weapons in Nova Command
+4. **Survive** — Waves get harder, enemies get smarter, stakes get higher
+5. **Repeat** — After Level 10, endless mode with leaderboard tracking
+
+---
+
+## In-Game Weapon Switching
+- **Hold Q** → Radial weapon wheel (time slows 50% while open)
+- **Number keys 1-9** → Quick-switch to weapon in that slot
+- **Mouse scroll** → Cycle next/prev weapon
+- Equipped weapon shown in bottom-right HUD
+- Only unlocked weapons appear in wheel
+- Active weapon has glow highlight in wheel
+
+## Charged Shots
+- **Hold left-click** to charge (0→100% over 2 seconds)
+- Visual: weapon glows brighter, charge bar fills above reticle
+- Release: damage scales with charge (100% charge = 3× base damage)
+- Charge bonus stacks with weapon level bonus
+- Some weapons have unique charge behaviors:
+  - Gauss Cannon: charge is mandatory (no tap-fire)
+  - Nova Lance: charge determines beam duration
+  - Frag Launcher: charge determines arc distance
+
+## AOE Scaling
+- All weapons gain AOE splash at **Level 3+**:
+  - Lv3: 2m splash radius, 25% splash damage
+  - Lv4: 3m splash radius, 40% splash damage
+  - Lv5: 4m splash radius, 60% splash damage
+- Explosive class weapons have innate AOE at all levels
+- AOE kill chains: if splash kills an enemy, that enemy also explodes (chain reaction)
 
 ---
 
@@ -90,6 +127,46 @@ reality-breaking weaponry against overwhelming odds.
 - HP multiplier: `1 + (level - 1) * 0.3`
 - Speed multiplier: `1 + (level - 1) * 0.05`
 - Score per kill: base × level multiplier
+- After Level 10 (endless): multipliers keep growing every 10 kills
+
+### Ranged Enemy AI
+- **Spitter/Shielder/Phantom** fire projectiles at the player
+- Projectiles: glowing orbs that travel at 15-25 units/s
+- Projectile damage: 10-25 depending on enemy type
+- Player can dodge projectiles (they're visible and not instant)
+- Projectiles despawn after 3 seconds or on surface hit
+- Visual: colored trail matching enemy type, small explosion on impact
+- Spitter fires every 2s, Shielder fires every 4s, Phantom fires on teleport
+
+### Enemy Visual Redesign
+- Each enemy type gets distinct geometry + color scheme
+- Drone: small icosahedron, red wireframe, fast rotation
+- Spitter: elongated shape (cylinder + sphere head), purple glow, spits visible orbs
+- Charger: wedge/arrow shape, orange trails, charges with speed blur
+- Shielder: sphere inside a transparent shield bubble, blue
+- Bomber: spiky dodecahedron, orange pulsing, explodes into particles on death
+- Juggernaut: large octahedron, blue, shrinks as HP drops, ground shake on footsteps
+- Phantom: ghost-like translucent mesh, green, flickers before teleporting
+- Hive Queen: large pulsing organic shape, pink/magenta, spawns mini-drones
+
+---
+
+## Save System
+
+### Auto-Save
+- Game state saved to `localStorage` on: level completion, pause, game over
+- Saved data: level, score, total kills, weapon unlocks, weapon levels,
+  equipped weapon, player HP, settings (volume, sensitivity, etc.)
+
+### Save Slots
+- 3 save slots on the main menu
+- Each slot shows: level, score, last played date
+- "New Game" starts fresh, "Continue" loads most recent
+- "Delete Save" with confirmation dialog
+
+### Settings Persistence
+- All settings (volume, sensitivity, FOV, graphics) saved separately
+- Applied immediately on change, persisted across sessions
 
 ---
 
@@ -158,32 +235,85 @@ reality-breaking weaponry against overwhelming odds.
 ## Implementation Priority
 
 ### Phase 3: Weapon Overhaul ← CURRENT
-- [x] Core 4 weapons working (placeholder names)
-- [ ] Rename to final weapon names
-- [ ] Expand to 6 starter weapons (1 per class)
-- [ ] 5-level upgrade system with visible scaling
-- [ ] Compact weapon card grid in Arsenal
+- [x] Core 6 weapons working (1 per class)
+- [x] 5-level upgrade system with scaling damage/rate
+- [x] Compact 3-column weapon card grid in Arsenal
+- [ ] Charged shots (hold to charge, release for bonus damage)
+- [ ] AOE damage on high-level weapons (Lv3+ adds splash)
 - [ ] Weapon-class-specific kill effects
+- [ ] Visual upgrades per level (glow, particles, geometry)
+- [ ] In-game weapon wheel (hold Q to radial-select)
+- [ ] Number keys 1-6 quick-switch in gameplay
 
 ### Phase 4: Enemy Overhaul
-- [ ] Add Spitter (ranged enemy)
-- [ ] Add Charger (burst movement)
-- [ ] Add Shielder (shield mechanic)
-- [ ] Add Phantom (teleport)
-- [ ] Add Hive Queen (spawner)
-- [ ] Enemy health scaling per level
+- [ ] Rename: swarmer→Drone, juggernaut→Juggernaut, bomber→Bomber
+- [ ] Add Spitter (ranged enemy — fires slow projectiles at player)
+- [ ] Add Charger (burst movement — winds up then rushes)
+- [ ] Add Shielder (regenerating shield, protects nearby allies)
+- [ ] Add Phantom (teleports every 3s, appears behind player)
+- [ ] Add Hive Queen (stationary spawner, must be killed to stop)
+- [ ] Enemy health/speed scaling per level
+- [ ] Elites fire projectiles from distance
+- [ ] Death-on-explosion for Bomber (AOE damage radius)
+- [ ] Enemy aggro improvements (flanking, group tactics)
 
-### Phase 5: Loot System
-- [ ] Drop spawning on enemy death
-- [ ] Floating/spinning pickup visuals
-- [ ] Magnetic collection radius
-- [ ] Health Pack + Shield Orb
-- [ ] Damage/Speed/Ammo buffs with timers
-- [ ] HUD buff indicators
+### Phase 5: Loot & Drop System
+- [ ] Drop spawning on enemy death (% chance per type)
+- [ ] Floating/spinning pickup visuals (3D orbs with glow)
+- [ ] Magnetic collection radius (6 units pull, 3 units collect)
+- [ ] Health Pack (+50 HP, green)
+- [ ] Shield Orb (+30 temp shield, blue)
+- [ ] Damage/Speed/Ammo buffs with countdown timers
+- [ ] Intel Cache (bonus score, cyan)
+- [ ] Weapon Crate (rare — random weapon unlock/upgrade, purple)
+- [ ] HUD buff indicators (top-right icons with timers)
+- [ ] Despawn after 15s with fade warning at 12s
 
-### Phase 6: Progression & Polish
-- [ ] Wave structure with kill targets
-- [ ] Boss waves (5, 9)
-- [ ] Kill combo system
-- [ ] Minimap/radar
-- [ ] Arena improvements (multiple rooms, moving platforms)
+### Phase 6: Game Flow & Progression
+- [ ] Wave structure with escalating kill targets (10→80)
+- [ ] Boss waves (Level 5: 3× Juggernauts, Level 9: Mega Juggernaut)
+- [ ] Kill combo counter (center HUD, multiplier for consecutive kills)
+- [ ] Level-up fanfare (screen flash, sound, "LEVEL UP" text)
+- [ ] Infinite mode after Level 10 (endless scaling waves)
+
+### Phase 7: Audio & Atmosphere
+- [ ] Background music system (looping tracks, crossfade)
+- [ ] Volume controls in Settings (Master, Music, SFX, UI)
+- [ ] Weapon-specific fire sounds (unique per weapon + level)
+- [ ] Enemy-specific sounds (spawn, attack, death)
+- [ ] Ambient arena sounds (hum, sparks, distant combat)
+- [ ] Dynamic music intensity (calm → combat → boss)
+
+### Phase 8: Settings & Quality of Life
+- [ ] Volume sliders (Master, Music, SFX)
+- [ ] Mouse sensitivity slider
+- [ ] FOV slider (60-110)
+- [ ] Graphics quality (Low/Medium/High — bloom, particles, reflections)
+- [ ] Keybind remapping
+- [ ] Colorblind mode (enemy/reticle color overrides)
+- [ ] Fullscreen toggle
+- [ ] Show FPS counter toggle
+
+### Phase 9: Save System & Persistence
+- [ ] Save game state to localStorage
+- [ ] Auto-save on level completion and pause
+- [ ] Load/continue from main menu
+- [ ] Save data: level, score, weapon unlocks/levels, settings
+- [ ] Multiple save slots (3)
+- [ ] Reset progress option
+
+### Phase 10: Leaderboard & Social
+- [ ] Local high score table (top 10, stored in localStorage)
+- [ ] End-of-run stats screen (kills, accuracy, time, score breakdown)
+- [ ] Online leaderboard (future — requires backend)
+- [ ] Share score screenshot
+
+### Phase 11: UI & Polish
+- [ ] Premium home screen redesign (animated background, particle effects)
+- [ ] Minimap/radar (bottom-left, shows enemy positions as dots)
+- [ ] Boss health bar (top-center)
+- [ ] Damage numbers floating above enemies
+- [ ] Screen shake on explosions
+- [ ] Arena improvements (multiple rooms, moving platforms, cover)
+- [ ] Loading screen with tips
+- [ ] Weapon inspect mode (rotate 3D model in Arsenal)
