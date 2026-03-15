@@ -7,7 +7,31 @@ import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
+
+// Broadcasts camera position to a ref for HUD elements outside the Canvas
+function CameraTracker({ posRef }: { posRef: React.MutableRefObject<[number, number, number]> }) {
+  useFrame((state) => {
+    const p = state.camera.position;
+    posRef.current[0] = p.x;
+    posRef.current[1] = p.y;
+    posRef.current[2] = p.z;
+  });
+  return null;
+}
+
+// Syncs camera FOV with hudSettings
+function CameraFOV() {
+  const { camera } = useThree();
+  const fov = useStore((s) => s.hudSettings.fov);
+  useEffect(() => {
+    if ((camera as THREE.PerspectiveCamera).fov !== fov) {
+      (camera as THREE.PerspectiveCamera).fov = fov;
+      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+    }
+  }, [camera, fov]);
+  return null;
+}
 
 // Custom mouselook — only rotates camera on mousemove when pointer is locked.
 // Does NOT add any click-to-lock listeners (we manage pointer lock manually).
@@ -37,9 +61,11 @@ import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { LootDrops } from "@/components/LootDrops";
 import { EnemyProjectiles } from "@/components/EnemyProjectiles";
-import { useStore, LOOT_CONFIG } from "@/store";
+import { useStore, LOOT_CONFIG, getHighScores } from "@/store";
+import type { HighScoreEntry } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 import { WeaponWheel } from "@/components/WeaponWheel";
+import { Minimap } from "@/components/Minimap";
 
 const RETICLE_PROFILES = {
   pulse_pistol:     { label: "KINETIC",      color: "#e2e8f0", size: 86 },
@@ -202,6 +228,9 @@ export default function Game() {
   const [comboDisplay, setComboDisplay] = useState<{ count: number; tier: string; multiplier: number } | null>(null);
   const [saveExists, setSaveExists] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [highScores, setHighScores] = useState<HighScoreEntry[]>([]);
+  const playerPosRef = useRef<[number, number, number]>([0, 0, 0]);
+  const [playerPos, setPlayerPos] = useState<[number, number, number]>([0, 0, 0]);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
@@ -215,6 +244,22 @@ export default function Game() {
   useEffect(() => {
     setSaveExists(hasSave());
   }, [hasSave, gamePhase]);
+
+  // Load high scores when game ends
+  useEffect(() => {
+    if (gamePhase === 'gameover') {
+      setHighScores(getHighScores());
+    }
+  }, [gamePhase]);
+
+  // Sync player position for minimap at low frequency
+  useEffect(() => {
+    if (gamePhase !== 'playing') return;
+    const id = setInterval(() => {
+      setPlayerPos([...playerPosRef.current] as [number, number, number]);
+    }, 200);
+    return () => clearInterval(id);
+  }, [gamePhase]);
 
   // Generate particles only on client (Math.random is fine post-hydration)
   const homeParticles = useMemo(() => {
@@ -509,6 +554,8 @@ export default function Game() {
         </EffectComposer>
 
         <MouseLook />
+        <CameraFOV />
+        <CameraTracker posRef={playerPosRef} />
       </Canvas>
 
       {/* ===== RETICLE (only during active gameplay) ===== */}
@@ -615,6 +662,9 @@ export default function Game() {
 
       {/* ===== WEAPON WHEEL ===== */}
       {gamePhase === 'playing' && <WeaponWheel />}
+
+      {/* ===== MINIMAP ===== */}
+      <Minimap playerPos={playerPos} />
 
       {/* ===== COMBO HUD ===== */}
       {comboDisplay && gamePhase === 'playing' && (
@@ -812,7 +862,7 @@ export default function Game() {
             <div className="mt-12 flex gap-8 text-center">
               {[
                 { label: 'WEAPONS', value: '18', sub: 'CLASSES', delay: '1.1s' },
-                { label: 'ENEMIES', value: '7', sub: 'TYPES', delay: '1.3s' },
+                { label: 'ENEMIES', value: '8', sub: 'TYPES', delay: '1.3s' },
                 { label: 'UPGRADES', value: '90', sub: 'TOTAL', delay: '1.5s' },
                 { label: 'WAVES', value: '∞', sub: 'ENDLESS', delay: '1.7s' },
               ].map((s) => (
@@ -926,6 +976,23 @@ export default function Game() {
                   <div className="text-white font-mono font-black text-2xl mt-1">{totalKills}</div>
                 </div>
               </div>
+
+              {/* High Scores */}
+              {highScores.length > 0 && (
+                <div className="mt-4 rounded-lg border border-red-500/20 bg-red-950/15 p-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.6s both' }}>
+                  <h3 className="text-red-300/70 font-mono text-[10px] uppercase tracking-widest font-bold mb-2">TOP SCORES</h3>
+                  <div className="space-y-1 max-h-[180px] overflow-y-auto">
+                    {highScores.slice(0, 5).map((hs, i) => (
+                      <div key={i} className={`flex justify-between items-center font-mono text-xs px-2 py-1 rounded ${hs.score === score && hs.kills === totalKills ? 'bg-red-500/15 text-white' : 'text-slate-400'}`}>
+                        <span className="text-red-300/50 w-5">{i + 1}.</span>
+                        <span className="flex-1 font-bold">{hs.score.toLocaleString()}</span>
+                        <span className="text-slate-500 ml-3">Lv{hs.level}</span>
+                        <span className="text-slate-500 ml-3">{hs.kills}K</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             
               {/* Buttons */}
               <div className="mt-8 flex flex-col gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.7s both' }}>

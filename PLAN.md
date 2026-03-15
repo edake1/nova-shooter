@@ -256,7 +256,7 @@ exploration and mastery.
 - [x] Enemy health/speed scaling per level
 - [x] Elites fire projectiles from distance
 - [x] Enemy visual redesign (distinct geometry per type)
-- [ ] Add Hive Queen (stationary spawner, must be killed to stop)
+- [x] Add Hive Queen (stationary spawner, must be killed to stop)
 - [x] Death-on-explosion for Bomber (AOE damage radius)
 - [ ] Enemy aggro improvements (flanking, group tactics)
 
@@ -270,13 +270,13 @@ exploration and mastery.
 - [x] Intel Cache (bonus score, cyan)
 - [x] HUD buff indicators (top-right icons with timers)
 - [x] Despawn after 15s with fade warning at 12s
-- [ ] Weapon Crate (rare — random weapon unlock/upgrade, purple)
+- [x] Weapon Crate (rare — random weapon unlock/upgrade, purple)
 
 ### Phase 6: Game Flow & Progression (partial)
 - [x] Wave structure with escalating kill targets (level × 10)
 - [x] Kill combo counter (center HUD, multiplier for consecutive kills)
 - [x] Level-up fanfare (screen flash, ring expansion, "LEVEL UP" text)
-- [ ] Boss waves (Level 5: 3× Juggernauts, Level 9: Mega Juggernaut)
+- [x] Boss waves (Level 5: 3× Juggernauts, Level 9: Mega Juggernaut)
 - [x] Infinite mode after Level 10 (endless scaling waves)
 
 ### Phase 7: Audio & Atmosphere (partial)
@@ -292,7 +292,7 @@ exploration and mastery.
 - [x] Mouse sensitivity slider
 - [x] Reticle scale/contrast options
 - [x] Reduced motion toggle
-- [ ] FOV slider (60-110)
+- [x] FOV slider (60-110)
 - [ ] Graphics quality (Low/Medium/High — bloom, particles, reflections)
 - [ ] Keybind remapping
 - [ ] Colorblind mode (enemy/reticle color overrides)
@@ -309,7 +309,7 @@ exploration and mastery.
 
 ### Phase 10: Leaderboard & Social
 - [x] End-of-run stats screen (score, level, kills)
-- [ ] Local high score table (top 10, stored in localStorage)
+- [x] Local high score table (top 10, stored in localStorage)
 - [ ] Online leaderboard (future — requires backend)
 - [ ] Share score screenshot
 
@@ -318,7 +318,7 @@ exploration and mastery.
 - [x] Damage flash overlay on player hit
 - [x] Directional damage indicators
 - [x] Combo HUD with animated counter and tier labels
-- [ ] Minimap/radar (bottom-left, shows enemy positions as dots)
+- [x] Minimap/radar (bottom-left, shows enemy positions as dots)
 - [ ] Boss health bar (top-center)
 - [x] Damage numbers floating above enemies
 - [x] Screen shake on explosions

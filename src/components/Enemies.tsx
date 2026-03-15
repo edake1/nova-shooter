@@ -72,6 +72,13 @@ const ENEMY_TRAITS: Record<string, EnemyTraits> = {
     ranged: true, fireInterval: 3000, projectileSpeed: 22, projectileDamage: 20,
     preferredRange: 12, wireframe: true,
   },
+  hive_queen: {
+    speed: 0, baseScale: 2.0, rotSpeed: 0.008,
+    contactDamage: 8, contactRange: 3.5,
+    emissive: '#ff00aa', core: '#ff44cc',
+    ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
+    preferredRange: 0, wireframe: false,
+  },
 };
 
 export function Enemies() {
@@ -111,6 +118,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const lastThreatAtRef = useRef(0);
   const lastDamageAtRef = useRef(0);
   const lastFireAtRef = useRef(0);
+  const lastSpawnAtRef = useRef(0);
   const chargeStateRef = useRef<'idle' | 'winding' | 'charging'>('idle');
   const chargeTimerRef = useRef(0);
   const teleportTimerRef = useRef(performance.now() + 3000 + Math.random() * 2000);
@@ -183,8 +191,29 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       moveDir.y = 0;
       let speed = traits.speed;
 
-      if (enemy.type === 'charger') {
-        // CHARGER: wind up, then burst toward player
+      if (enemy.type === 'hive_queen') {
+        // HIVE QUEEN: stationary, spawns 2 swarmers every 5s
+        moveDir.set(0, 0, 0);
+        speed = 0;
+        if (now - lastSpawnAtRef.current > 5000) {
+          lastSpawnAtRef.current = now;
+          const store = useStore.getState();
+          const healthMult = 1 + (store.level * 0.2);
+          const hp = Math.floor(1 * healthMult);
+          for (let i = 0; i < 2; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spawnDist = 3 + Math.random() * 2;
+            store.enemies.push({
+              id: Math.floor(Math.random() * 1e9),
+              position: [t.x + Math.cos(angle) * spawnDist, t.y, t.z + Math.sin(angle) * spawnDist],
+              type: 'swarmer',
+              health: hp,
+              maxHealth: hp,
+            });
+          }
+          useStore.setState({ enemies: [...store.enemies] });
+        }
+      } else if (enemy.type === 'charger') {
         if (chargeStateRef.current === 'idle' && distanceToPlayer < 25) {
           chargeStateRef.current = 'winding';
           chargeTimerRef.current = now;
@@ -289,12 +318,13 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       case 'charger': return 0.35;
       case 'shielder': return 0.35;
       case 'phantom': return 0.25;
+      case 'hive_queen': return 0.6;
       default: return 0.35; // swarmer
     }
   }, [enemy.type]);
 
   return (
-    <RigidBody ref={rigidBodyRef} position={enemy.position} type="dynamic" colliders="ball" mass={enemy.type === 'juggernaut' ? 10 : 1} linearDamping={2}>
+    <RigidBody ref={rigidBodyRef} position={enemy.position} type={enemy.type === 'hive_queen' ? 'fixed' : 'dynamic'} colliders="ball" mass={enemy.type === 'juggernaut' ? 10 : enemy.type === 'hive_queen' ? 20 : 1} linearDamping={2}>
       <group scale={[currentScale, currentScale, currentScale]}>
         <mesh ref={meshRef} userData={{ isEnemy: true, id: enemy.id }} castShadow receiveShadow>
           {/* Type-specific geometry */}
@@ -305,6 +335,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
           {enemy.type === 'charger' && <boxGeometry args={[1.6, 0.8, 2.4]} />}
           {enemy.type === 'shielder' && <icosahedronGeometry args={[1.2, 1]} />}
           {enemy.type === 'phantom' && <octahedronGeometry args={[1.1, 0]} />}
+          {enemy.type === 'hive_queen' && <dodecahedronGeometry args={[1.4, 1]} />}
           <meshStandardMaterial
             color="#0a0a0a"
             emissive={traits.emissive}
@@ -376,6 +407,24 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
             <octahedronGeometry args={[1.6, 0]} />
             <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={2} transparent opacity={phantomOpacity * 0.15} wireframe />
           </mesh>
+        )}
+
+        {/* Hive Queen: pulsing organic outer shell + tentacle rings */}
+        {enemy.type === 'hive_queen' && (
+          <>
+            <mesh>
+              <icosahedronGeometry args={[2.0, 0]} />
+              <meshStandardMaterial color="#1a001a" emissive="#ff00aa" emissiveIntensity={2} transparent opacity={0.12} wireframe />
+            </mesh>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[1.6, 0.06, 8, 32]} />
+              <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
+            </mesh>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <torusGeometry args={[1.6, 0.06, 8, 32]} />
+              <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
+            </mesh>
+          </>
         )}
 
         {/* Juggernaut: armored plates */}

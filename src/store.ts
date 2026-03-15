@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber' | 'spitter' | 'charger' | 'shielder' | 'phantom';
+export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber' | 'spitter' | 'charger' | 'shielder' | 'phantom' | 'hive_queen';
 
 export type WeaponClass = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden' | 'arc' | 'beam' | 'force' | 'singularity' | 'swarm' | 'sonic' | 'nano' | 'photon' | 'whip' | 'warp';
 export type WeaponType = 'pulse_pistol' | 'plasma_caster' | 'frag_launcher' | 'shrapnel_blaster' | 'cryo_emitter' | 'void_reaper' | 'lightning_coil' | 'blade_wave' | 'railgun' | 'gravity_well' | 'swarm_missiles' | 'beam_laser' | 'ricochet_cannon' | 'sonic_boom' | 'nano_swarm' | 'photon_burst' | 'plasma_whip' | 'warp_lance';
@@ -71,7 +71,7 @@ export function getUpgradeCost(base: number, currentLevel: number): number {
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover';
 
 // === LOOT DROP SYSTEM ===
-export type LootType = 'health' | 'shield' | 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'intel_cache';
+export type LootType = 'health' | 'shield' | 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'intel_cache' | 'weapon_crate';
 
 export interface LootDrop {
   id: number;
@@ -93,12 +93,13 @@ export const LOOT_CONFIG: Record<LootType, { color: string; label: string; dropW
   speed_boost:  { color: '#eab308', label: 'SPEED BOOST',  dropWeight: 10 },
   ammo_surge:   { color: '#f97316', label: 'AMMO SURGE',   dropWeight: 8 },
   intel_cache:  { color: '#06b6d4', label: 'INTEL',        dropWeight: 25 },
+  weapon_crate: { color: '#a855f7', label: 'WEAPON CRATE', dropWeight: 3 },
 };
 
 // Drop chance per enemy type
 const DROP_CHANCE: Record<EnemyType, number> = {
   swarmer: 0.2, bomber: 0.35, juggernaut: 0.5,
-  spitter: 0.2, charger: 0.25, shielder: 0.3, phantom: 0.4,
+  spitter: 0.2, charger: 0.25, shielder: 0.3, phantom: 0.4, hive_queen: 1.0,
 };
 
 function rollLootDrop(enemyType: EnemyType, position: [number, number, number]): LootDrop | null {
@@ -176,6 +177,7 @@ export interface HudSettings {
   sfxVolume: number;
   musicVolume: number;
   mouseSensitivity: number;
+  fov: number;
 }
 
 // Monotonic ID counter — guaranteed unique, no Date.now() collisions
@@ -222,6 +224,7 @@ interface GameState {
   setSfxVolume: (v: number) => void;
   setMusicVolume: (v: number) => void;
   setMouseSensitivity: (v: number) => void;
+  setFov: (v: number) => void;
   // Loot
   lootDrops: LootDrop[];
   activeBuffs: ActiveBuff[];
@@ -243,6 +246,34 @@ interface GameState {
 
 // === SAVE SYSTEM ===
 const SAVE_KEY = 'nova_save';
+const HIGHSCORE_KEY = 'nova_highscores';
+
+export interface HighScoreEntry {
+  score: number;
+  level: number;
+  kills: number;
+  date: number;
+}
+
+function readHighScores(): HighScoreEntry[] {
+  try {
+    const raw = localStorage.getItem(HIGHSCORE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as HighScoreEntry[];
+  } catch { return []; }
+}
+
+function writeHighScore(entry: HighScoreEntry) {
+  const scores = readHighScores();
+  scores.push(entry);
+  scores.sort((a, b) => b.score - a.score);
+  const top10 = scores.slice(0, 10);
+  try { localStorage.setItem(HIGHSCORE_KEY, JSON.stringify(top10)); } catch {}
+}
+
+export function getHighScores(): HighScoreEntry[] {
+  return readHighScores();
+}
 
 interface SaveData {
   level: number;
@@ -305,6 +336,7 @@ export const useStore = create<GameState>((set) => ({
     sfxVolume: 0.5,
     musicVolume: 0.3,
     mouseSensitivity: 1.0,
+    fov: 75,
   },
   // Loot state
   lootDrops: [],
@@ -352,6 +384,7 @@ export const useStore = create<GameState>((set) => ({
     }
     const newHealth = Math.max(0, state.playerHealth - remaining);
     if (newHealth <= 0) {
+      writeHighScore({ score: state.score, level: state.level, kills: state.totalKills, date: Date.now() });
       return { playerHealth: 0, shieldHP: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
     }
     return { playerHealth: newHealth, shieldHP: newShield };
@@ -431,6 +464,9 @@ export const useStore = create<GameState>((set) => ({
   setMouseSensitivity: (v) => set((state) => ({
     hudSettings: { ...state.hudSettings, mouseSensitivity: Math.max(0.1, Math.min(3, v)) }
   })),
+  setFov: (v) => set((state) => ({
+    hudSettings: { ...state.hudSettings, fov: Math.max(60, Math.min(110, v)) }
+  })),
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e)
   })),
@@ -458,6 +494,42 @@ export const useStore = create<GameState>((set) => ({
         const newLevel = state.level + 1;
         window.dispatchEvent(new CustomEvent('nova:levelup', { detail: { level: newLevel } }));
         setTimeout(() => useStore.getState().saveGame(), 0);
+        // Boss wave spawns
+        if (newLevel === 5 || newLevel === 9) {
+          setTimeout(() => {
+            const s = useStore.getState();
+            const hpMult = 1 + (newLevel * 0.2);
+            const bossEnemies: EnemyData[] = [];
+            if (newLevel === 5) {
+              // 3x Juggernauts
+              for (let i = 0; i < 3; i++) {
+                const angle = (Math.PI * 2 / 3) * i;
+                const hp = Math.floor(5 * hpMult * 2);
+                bossEnemies.push({
+                  id: nextId(),
+                  position: [Math.cos(angle) * 25, 4, Math.sin(angle) * 25],
+                  type: 'juggernaut',
+                  health: hp,
+                  maxHealth: hp,
+                });
+              }
+            } else if (newLevel === 9) {
+              // Mega Juggernaut — a single juggernaut with massive HP
+              const hp = Math.floor(5 * hpMult * 5);
+              bossEnemies.push({
+                id: nextId(),
+                position: [0, 5, -30],
+                type: 'juggernaut',
+                health: hp,
+                maxHealth: hp,
+              });
+            }
+            if (bossEnemies.length > 0) {
+              useStore.setState((prev) => ({ enemies: [...prev.enemies, ...bossEnemies] }));
+              window.dispatchEvent(new CustomEvent('nova:boss', { detail: { level: newLevel } }));
+            }
+          }, 1000);
+        }
         return {
           enemies: newEnemies,
           killsThisLevel: 0,
@@ -502,11 +574,12 @@ export const useStore = create<GameState>((set) => ({
     if (state.level >= 5) types.push('juggernaut');
     if (state.level >= 6) types.push('phantom', 'charger');
     if (state.level >= 7) types.push('juggernaut', 'bomber', 'phantom');
+    if (state.level >= 8) types.push('hive_queen');
     
     const type = types[Math.floor(Math.random() * types.length)];
     const healthMultiplier = 1 + (state.level * 0.2);
     const baseHealth: Record<EnemyType, number> = {
-      swarmer: 1, spitter: 2, bomber: 2, charger: 4, shielder: 3, juggernaut: 5, phantom: 3,
+      swarmer: 1, spitter: 2, bomber: 2, charger: 4, shielder: 3, juggernaut: 5, phantom: 3, hive_queen: 20,
     };
     const maxHealth = Math.floor((baseHealth[type] ?? 1) * healthMultiplier);
 
@@ -565,6 +638,24 @@ export const useStore = create<GameState>((set) => ({
         return { lootDrops: newDrops, activeBuffs: [...state.activeBuffs.filter(b => b.type !== 'ammo_surge'), { type: 'ammo_surge' as const, expiresAt: now + 6000, value: 2.0 }] };
       case 'intel_cache':
         return { lootDrops: newDrops, score: state.score + 500 };
+      case 'weapon_crate': {
+        // Find a locked weapon or upgradeable weapon
+        const allWeapons = WEAPON_PROFILES;
+        const locked = allWeapons.filter(w => state.weaponLevels[w.id] === 0);
+        if (locked.length > 0) {
+          // Unlock a random locked weapon
+          const pick = locked[Math.floor(Math.random() * locked.length)];
+          return { lootDrops: newDrops, weaponLevels: { ...state.weaponLevels, [pick.id]: 1 } };
+        }
+        // All unlocked — upgrade a random non-maxed weapon
+        const upgradeable = allWeapons.filter(w => state.weaponLevels[w.id] > 0 && state.weaponLevels[w.id] < MAX_WEAPON_LEVEL);
+        if (upgradeable.length > 0) {
+          const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+          return { lootDrops: newDrops, weaponLevels: { ...state.weaponLevels, [pick.id]: state.weaponLevels[pick.id] + 1 } };
+        }
+        // All maxed — bonus score instead
+        return { lootDrops: newDrops, score: state.score + 2000 };
+      }
       default:
         return { lootDrops: newDrops };
     }
@@ -620,6 +711,7 @@ export const useStore = create<GameState>((set) => ({
       const newHealth = Math.max(0, state.playerHealth - remaining);
       window.dispatchEvent(new CustomEvent('nova:playerHit', { detail: { damage: totalDamage } }));
       if (newHealth <= 0) {
+        writeHighScore({ score: state.score, level: state.level, kills: state.totalKills, date: Date.now() });
         return { enemyProjectiles: surviving, playerHealth: 0, shieldHP: newShield, gamePhase: 'gameover' as GamePhase, isPaused: true, isGameOver: true };
       }
       return { enemyProjectiles: surviving, playerHealth: newHealth, shieldHP: newShield };

@@ -83,7 +83,7 @@ export function PauseMenu() {
     equippedWeapon, weaponLevels, hudSettings,
     buyWeaponUpgrade, equipWeapon,
     cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion,
-    setSfxVolume, setMusicVolume, setMouseSensitivity,
+    setSfxVolume, setMusicVolume, setMouseSensitivity, setFov,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
@@ -360,6 +360,15 @@ export function PauseMenu() {
                     onClick={() => { toggleReducedMotion(); playUiSound(UI_SFX.equip, 0.25); setStatusLine("MOTION MODE TOGGLED"); }}
                     className="w-full rounded border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-left font-mono text-sm uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20 transition flex justify-between items-center"
                   ><span>[M] Reduced Motion</span><span className={`font-bold ${hudSettings.reducedMotion ? "text-emerald-400" : "text-slate-500"}`}>{hudSettings.reducedMotion ? "ON" : "OFF"}</span></button>
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">Field of View</span>
+                      <span className="font-mono text-sm text-cyan-300 font-bold">{hudSettings.fov}°</span>
+                    </div>
+                    <input type="range" min="60" max="110" value={hudSettings.fov}
+                      onChange={(e) => setFov(Number(e.target.value))}
+                      className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
+                  </div>
                 </div>
               </div>
               {/* HOTKEYS */}
