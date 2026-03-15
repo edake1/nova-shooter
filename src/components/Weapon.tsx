@@ -715,14 +715,7 @@ export function Weapon() {
   return (
     <group ref={groupRef}>
       <mesh ref={weaponMeshRef} position={[0.3, -0.3, -0.4]} castShadow>
-        <boxGeometry args={[0.08, 0.15, 0.6]} />
-        <meshStandardMaterial color="#111" metalness={0.9} roughness={0.1} />
-        
-        {/* Glowing barrel strip — color changes per weapon */}
-        <mesh position={[0, 0.08, 0.1]}>
-           <boxGeometry args={[0.02, 0.05, 0.4]} />
-           <WeaponBarrelMaterial />
-        </mesh>
+        <WeaponModel />
 
         {/* Laser trail — toggled via ref, not conditional render */}
         <mesh ref={flashRef} visible={false} position={[0, 0, -50]} rotation={[Math.PI / 2, 0, 0]}>
@@ -734,11 +727,84 @@ export function Weapon() {
   );
 }
 
-/** Reactive barrel strip material that reads equippedWeapon from store */
-function WeaponBarrelMaterial() {
+/** Reactive weapon model that scales visually with weapon level */
+function WeaponModel() {
   const weapon = useStore((s) => s.equippedWeapon);
+  const level = useStore((s) => s.weaponLevels[s.equippedWeapon]);
   const colors = WEAPON_COLORS[weapon];
-  return <meshStandardMaterial color={colors.barrel} emissive={colors.emissive} emissiveIntensity={2} />;
+  const effectiveLevel = Math.max(level, 1);
+
+  // Lv4+: barrel gets wider/longer
+  const barrelWidth = 0.08 + (effectiveLevel >= 4 ? 0.02 : 0);
+  const barrelLength = 0.6 + (effectiveLevel >= 4 ? 0.1 : 0);
+  // Glow intensity increases with level
+  const glowIntensity = 1.5 + (effectiveLevel - 1) * 1.0;
+  const isMastered = effectiveLevel >= 5;
+
+  return (
+    <>
+      {/* Main barrel body */}
+      <boxGeometry args={[barrelWidth, 0.15, barrelLength]} />
+      <meshStandardMaterial
+        color={isMastered ? '#1a1a2e' : '#111'}
+        metalness={0.9}
+        roughness={0.1}
+        emissive={isMastered ? colors.emissive : '#000000'}
+        emissiveIntensity={isMastered ? 0.3 : 0}
+      />
+
+      {/* Primary barrel strip — always visible */}
+      <mesh position={[0, 0.08, 0.1]}>
+        <boxGeometry args={[0.02, 0.05, barrelLength * 0.65]} />
+        <meshStandardMaterial color={colors.barrel} emissive={colors.emissive} emissiveIntensity={glowIntensity} toneMapped={false} />
+      </mesh>
+
+      {/* Lv2+: Second glowing barrel strip (bottom) */}
+      {effectiveLevel >= 2 && (
+        <mesh position={[0, -0.08, 0.1]}>
+          <boxGeometry args={[0.02, 0.03, barrelLength * 0.5]} />
+          <meshStandardMaterial color={colors.barrel} emissive={colors.emissive} emissiveIntensity={glowIntensity * 0.7} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* Lv3+: Side strips */}
+      {effectiveLevel >= 3 && (
+        <>
+          <mesh position={[0.045, 0, 0.05]}>
+            <boxGeometry args={[0.01, 0.12, barrelLength * 0.4]} />
+            <meshStandardMaterial color={colors.barrel} emissive={colors.emissive} emissiveIntensity={glowIntensity * 0.5} toneMapped={false} />
+          </mesh>
+          <mesh position={[-0.045, 0, 0.05]}>
+            <boxGeometry args={[0.01, 0.12, barrelLength * 0.4]} />
+            <meshStandardMaterial color={colors.barrel} emissive={colors.emissive} emissiveIntensity={glowIntensity * 0.5} toneMapped={false} />
+          </mesh>
+        </>
+      )}
+
+      {/* Lv4+: Muzzle tip ring */}
+      {effectiveLevel >= 4 && (
+        <mesh position={[0, 0, -barrelLength / 2 - 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.06, 0.01, 8, 16]} />
+          <meshStandardMaterial color="#000" emissive={colors.emissive} emissiveIntensity={glowIntensity} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* Lv5 MASTERED: outer glow aura */}
+      {isMastered && (
+        <mesh position={[0, 0, -0.05]}>
+          <boxGeometry args={[barrelWidth + 0.04, 0.2, barrelLength + 0.06]} />
+          <meshStandardMaterial
+            color="#000"
+            emissive={colors.emissive}
+            emissiveIntensity={2}
+            transparent
+            opacity={0.08}
+            toneMapped={false}
+          />
+        </mesh>
+      )}
+    </>
+  );
 }
 
 /** Reactive flash material */
