@@ -126,7 +126,7 @@ export function PauseMenu() {
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-white font-black text-4xl tracking-tighter italic glass-text">NOVA // COMMAND</h1>
+            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-white font-black text-4xl tracking-tighter italic glass-text">NOVA COMMAND</h1>
             <p className="text-sm font-bold tracking-[0.4em] text-cyan-500 mt-1 uppercase">Control Deck — System Paused</p>
           </div>
           <div className="flex gap-3">
@@ -316,7 +316,7 @@ export function PauseMenu() {
 
         {/* Footer */}
         <div className="flex flex-col items-center gap-3 border-t border-cyan-500/30 pt-4">
-          <p className="text-cyan-200 font-mono text-xs tracking-[0.24em] uppercase font-bold">Status // {statusLine}</p>
+          <p className="text-cyan-200 font-mono text-xs tracking-[0.24em] uppercase font-bold">STATUS: {statusLine}</p>
           <button
             type="button"
             onClick={() => {

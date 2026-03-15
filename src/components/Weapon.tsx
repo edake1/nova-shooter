@@ -29,7 +29,7 @@ const WEAPON_FIRE_SFX: Record<WeaponType, string> = {
 };
 
 const WEAPON_FIRE_VOL: Record<WeaponType, number> = {
-  pulse_pistol: 0.3, plasma_caster: 0.3, frag_launcher: 0.4, shrapnel_blaster: 0.35, cryo_emitter: 0.25, void_reaper: 0.35,
+  pulse_pistol: 0.3, plasma_caster: 0.3, frag_launcher: 0.15, shrapnel_blaster: 0.35, cryo_emitter: 0.25, void_reaper: 0.35,
 };
 
 // Per-weapon barrel glow colors

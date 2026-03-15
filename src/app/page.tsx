@@ -1,12 +1,35 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { PointerLockControls, Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
+import { Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import { Suspense, useEffect, useState, useRef, useCallback } from "react";
+import { useThree } from "@react-three/fiber";
+
+// Custom mouselook — only rotates camera on mousemove when pointer is locked.
+// Does NOT add any click-to-lock listeners (we manage pointer lock manually).
+function MouseLook() {
+  const { camera } = useThree();
+  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'));
+  
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!document.pointerLockElement) return;
+      euler.current.setFromQuaternion(camera.quaternion);
+      euler.current.y -= e.movementX * 0.002;
+      euler.current.x -= e.movementY * 0.002;
+      euler.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.current.x));
+      camera.quaternion.setFromEuler(euler.current);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    return () => document.removeEventListener('mousemove', onMouseMove);
+  }, [camera]);
+  
+  return null;
+}
 import { Player } from "@/components/Player";
 import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
@@ -356,7 +379,7 @@ export default function Game() {
           <Noise opacity={0.03} />
         </EffectComposer>
 
-        <PointerLockControls />
+        <MouseLook />
       </Canvas>
 
       {/* ===== RETICLE (only during active gameplay) ===== */}
