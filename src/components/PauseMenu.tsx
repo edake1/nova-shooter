@@ -84,6 +84,7 @@ export function PauseMenu() {
     buyWeaponUpgrade, equipWeapon,
     cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion,
     setSfxVolume, setMusicVolume, setMouseSensitivity, setFov,
+    setGraphicsQuality, toggleShowFps,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
@@ -369,6 +370,39 @@ export function PauseMenu() {
                       onChange={(e) => setFov(Number(e.target.value))}
                       className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
                   </div>
+                  {/* Graphics Quality */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">Graphics</span>
+                      <span className="font-mono text-sm text-cyan-300 font-bold uppercase">{hudSettings.graphicsQuality}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {(['low', 'medium', 'high'] as const).map((q) => (
+                        <button key={q} type="button"
+                          onClick={() => { setGraphicsQuality(q); playUiSound(UI_SFX.equip, 0.25); setStatusLine(`GRAPHICS: ${q.toUpperCase()}`); }}
+                          className={`flex-1 rounded border px-2 py-1.5 font-mono text-xs uppercase tracking-wider transition ${
+                            hudSettings.graphicsQuality === q
+                              ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200'
+                              : 'border-cyan-500/30 bg-black/30 text-slate-400 hover:bg-cyan-500/10'
+                          }`}
+                        >{q}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Fullscreen */}
+                  <button type="button"
+                    onClick={() => {
+                      if (document.fullscreenElement) { document.exitFullscreen(); } else { (document.getElementById('game-root') ?? document.documentElement).requestFullscreen().catch(() => {}); }
+                      playUiSound(UI_SFX.equip, 0.25);
+                      setStatusLine(document.fullscreenElement ? "WINDOWED" : "FULLSCREEN");
+                    }}
+                    className="w-full rounded border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-left font-mono text-sm uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20 transition flex justify-between items-center"
+                  ><span>Fullscreen</span><span className={`font-bold ${document.fullscreenElement ? 'text-emerald-400' : 'text-slate-500'}`}>{document.fullscreenElement ? 'ON' : 'OFF'}</span></button>
+                  {/* FPS Counter */}
+                  <button type="button"
+                    onClick={() => { toggleShowFps(); playUiSound(UI_SFX.equip, 0.25); setStatusLine("FPS COUNTER TOGGLED"); }}
+                    className="w-full rounded border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-left font-mono text-sm uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20 transition flex justify-between items-center"
+                  ><span>FPS Counter</span><span className={`font-bold ${hudSettings.showFps ? 'text-emerald-400' : 'text-slate-500'}`}>{hudSettings.showFps ? 'ON' : 'OFF'}</span></button>
                 </div>
               </div>
               {/* HOTKEYS */}

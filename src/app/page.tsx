@@ -225,6 +225,8 @@ export default function Game() {
   const [incoming, setIncoming] = useState({ left: 0, right: 0, front: 0, back: 0 });
   const [damageFlash, setDamageFlash] = useState(0);
   const [chargeLevel, setChargeLevel] = useState(0);
+  const [fps, setFps] = useState(0);
+  const fpsFramesRef = useRef<number[]>([]);
   const [levelUpShow, setLevelUpShow] = useState<number | null>(null);
   const [comboDisplay, setComboDisplay] = useState<{ count: number; tier: string; multiplier: number } | null>(null);
   const [saveExists, setSaveExists] = useState(false);
@@ -325,6 +327,24 @@ export default function Game() {
     window.addEventListener('nova:charge', handleCharge as EventListener);
     return () => window.removeEventListener('nova:charge', handleCharge as EventListener);
   }, []);
+
+  // FPS counter
+  useEffect(() => {
+    if (!hudSettings.showFps) return;
+    let raf: number;
+    const tick = () => {
+      const now = performance.now();
+      fpsFramesRef.current.push(now);
+      // Keep only last 1 second of timestamps
+      while (fpsFramesRef.current.length > 0 && fpsFramesRef.current[0] < now - 1000) {
+        fpsFramesRef.current.shift();
+      }
+      setFps(fpsFramesRef.current.length);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [hudSettings.showFps]);
 
   // Combo display
   useEffect(() => {
@@ -582,11 +602,11 @@ export default function Game() {
           <Stars radius={50} depth={50} count={3000} factor={2} fade speed={0.5} />
         </Suspense>
 
-        <EffectComposer>
-          <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
-          <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(0.002, 0.002)} />
+        <EffectComposer enabled={hudSettings.graphicsQuality !== 'low'}>
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={hudSettings.graphicsQuality === 'high' ? 1.5 : 0.8} />
+          <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(hudSettings.graphicsQuality === 'high' ? 0.002 : 0, hudSettings.graphicsQuality === 'high' ? 0.002 : 0)} />
           <Vignette eskil={false} offset={0.1} darkness={1.1} />
-          <Noise opacity={0.03} />
+          <Noise opacity={hudSettings.graphicsQuality === 'high' ? 0.03 : 0} />
         </EffectComposer>
 
         <MouseLook />
@@ -806,6 +826,14 @@ export default function Game() {
             background: `radial-gradient(ellipse at center, transparent 40%, rgba(255, 0, 0, ${damageFlash * 0.5}) 100%)`,
             boxShadow: `inset 0 0 80px rgba(255, 0, 0, ${damageFlash * 0.4})`,
           }} />
+      )}
+
+      {/* ===== FPS COUNTER ===== */}
+      {hudSettings.showFps && (
+        <div className="fixed top-1 right-1 z-[300] pointer-events-none font-mono text-xs px-2 py-0.5 rounded bg-black/60 border border-cyan-500/20"
+          style={{ color: fps >= 50 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171' }}>
+          {fps} FPS
+        </div>
       )}
 
       {/* ===== HOME SCREEN ===== */}

@@ -178,6 +178,8 @@ export interface HudSettings {
   musicVolume: number;
   mouseSensitivity: number;
   fov: number;
+  graphicsQuality: 'low' | 'medium' | 'high';
+  showFps: boolean;
 }
 
 // Monotonic ID counter — guaranteed unique, no Date.now() collisions
@@ -227,6 +229,8 @@ interface GameState {
   setMusicVolume: (v: number) => void;
   setMouseSensitivity: (v: number) => void;
   setFov: (v: number) => void;
+  setGraphicsQuality: (q: 'low' | 'medium' | 'high') => void;
+  toggleShowFps: () => void;
   // Loot
   lootDrops: LootDrop[];
   activeBuffs: ActiveBuff[];
@@ -340,8 +344,8 @@ export const useStore = create<GameState>((set) => ({
     sfxVolume: 0.5,
     musicVolume: 0.3,
     mouseSensitivity: 1.0,
-    fov: 75,
-  },
+    fov: 75,    graphicsQuality: 'high' as const,
+    showFps: false,  },
   // Loot state
   lootDrops: [],
   activeBuffs: [],
@@ -474,6 +478,12 @@ export const useStore = create<GameState>((set) => ({
   })),
   setFov: (v) => set((state) => ({
     hudSettings: { ...state.hudSettings, fov: Math.max(60, Math.min(110, v)) }
+  })),
+  setGraphicsQuality: (q) => set((state) => ({
+    hudSettings: { ...state.hudSettings, graphicsQuality: q }
+  })),
+  toggleShowFps: () => set((state) => ({
+    hudSettings: { ...state.hudSettings, showFps: !state.hudSettings.showFps }
   })),
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e),
