@@ -245,8 +245,8 @@ exploration and mastery.
 - [x] Shoot-down enemy projectiles
 - [x] Combo system with 7 tiers (COMBO→RAMPAGE→CARNAGE→MASSACRE→GODLIKE→NOVA STREAK, 1x-5x score)
 - [x] Charged shots (hold to charge, release for bonus damage)
-- [ ] Weapon-class-specific kill effects
-- [ ] Visual upgrades per level (glow, particles, geometry)
+- [x] Weapon-class-specific kill effects
+- [x] Visual upgrades per level (glow, particles, geometry)
 
 ### Phase 4: Enemy Overhaul ✅ (partial)
 - [x] Add Spitter (ranged enemy — fires slow projectiles at player)
@@ -258,7 +258,7 @@ exploration and mastery.
 - [x] Enemy visual redesign (distinct geometry per type)
 - [x] Add Hive Queen (stationary spawner, must be killed to stop)
 - [x] Death-on-explosion for Bomber (AOE damage radius)
-- [ ] Enemy aggro improvements (flanking, group tactics)
+- [x] Enemy aggro improvements (flanking, group tactics)
 
 ### Phase 5: Loot & Drop System ✅
 - [x] Drop spawning on enemy death (% chance per type)
@@ -293,11 +293,11 @@ exploration and mastery.
 - [x] Reticle scale/contrast options
 - [x] Reduced motion toggle
 - [x] FOV slider (60-110)
-- [ ] Graphics quality (Low/Medium/High — bloom, particles, reflections)
+- [x] Graphics quality (Low/Medium/High — bloom, particles, reflections)
 - [ ] Keybind remapping
 - [ ] Colorblind mode (enemy/reticle color overrides)
-- [ ] Fullscreen toggle
-- [ ] Show FPS counter toggle
+- [x] Fullscreen toggle
+- [x] Show FPS counter toggle
 
 ### Phase 9: Save System & Persistence ✅
 - [x] Save game state to localStorage
