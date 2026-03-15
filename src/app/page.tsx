@@ -214,7 +214,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt, enemies } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -245,6 +245,13 @@ export default function Game() {
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
+
+  // Boss tracking — detect juggernaut/hive_queen enemies for boss health bar
+  const bossEnemies = enemies.filter((e) => e.type === 'juggernaut' || e.type === 'hive_queen');
+  const bossHP = bossEnemies.reduce((sum, e) => sum + e.health, 0);
+  const bossMaxHP = bossEnemies.reduce((sum, e) => sum + e.maxHealth, 0);
+  const bossName = bossEnemies.length > 1 ? 'BOSS WAVE' : bossEnemies.length === 1 ? (bossEnemies[0].type === 'hive_queen' ? 'HIVE QUEEN' : 'JUGGERNAUT') : '';
+  const showBossBar = bossEnemies.length > 0 && gamePhase === 'playing';
 
   // Client-only flag — avoids hydration mismatch for random particles & localStorage
   useEffect(() => {
@@ -683,6 +690,32 @@ export default function Game() {
 
       {/* ===== MINIMAP ===== */}
       <Minimap playerPos={playerPos} />
+
+      {/* ===== BOSS HEALTH BAR ===== */}
+      {showBossBar && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[115] pointer-events-none w-[400px]">
+          <div className="glass-panel p-3" style={{ borderColor: 'rgba(239, 68, 68, 0.4)', boxShadow: '0 0 20px rgba(239, 68, 68, 0.15)' }}>
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="font-orbitron text-xs font-bold tracking-[0.2em] text-red-400 uppercase"
+                style={{ textShadow: '0 0 10px rgba(239, 68, 68, 0.6)' }}>
+                {bossName}
+              </span>
+              <span className="font-mono text-xs font-bold text-red-300">
+                {bossHP}/{bossMaxHP}
+              </span>
+            </div>
+            <div className="h-3 rounded-full bg-black/60 overflow-hidden border border-red-500/30">
+              <div
+                className="h-full transition-all duration-200 bg-gradient-to-r from-red-600 via-red-500 to-orange-400"
+                style={{
+                  width: `${bossMaxHP > 0 ? (bossHP / bossMaxHP) * 100 : 0}%`,
+                  boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 0 8px rgba(239, 68, 68, 0.4)',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== COMBO HUD ===== */}
       {comboDisplay && gamePhase === 'playing' && (
