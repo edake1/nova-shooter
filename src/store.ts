@@ -1,8 +1,47 @@
 import { create } from 'zustand';
 
 export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber';
-export type WeaponType = 'plasmacaster' | 'shrapnel' | 'bio' | 'nuke';
-export type ExplosionType = 'plasma' | 'shrapnel' | 'bio' | 'nuke';
+
+export type WeaponClass = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden';
+export type WeaponType = 'pulse_pistol' | 'plasma_caster' | 'frag_launcher' | 'shrapnel_blaster' | 'cryo_emitter' | 'void_reaper';
+export type ExplosionType = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden';
+
+export const WEAPON_CLASS: Record<WeaponType, WeaponClass> = {
+  pulse_pistol: 'kinetic',
+  plasma_caster: 'energy',
+  frag_launcher: 'explosive',
+  shrapnel_blaster: 'spread',
+  cryo_emitter: 'tech',
+  void_reaper: 'forbidden',
+};
+
+export const MAX_WEAPON_LEVEL = 5;
+
+export interface WeaponProfile {
+  id: WeaponType;
+  label: string;
+  blurb: string;
+  weaponClass: WeaponClass;
+  unlockCost: number;
+  baseUpgradeCost: number;
+  accent: string;
+}
+
+export const WEAPON_PROFILES: WeaponProfile[] = [
+  { id: 'pulse_pistol', label: 'Pulse Pistol', blurb: 'Reliable kinetic sidearm. Fast fire, clean kills.', weaponClass: 'kinetic', unlockCost: 0, baseUpgradeCost: 1500, accent: 'slate' },
+  { id: 'plasma_caster', label: 'Plasma Caster', blurb: '3-round energy burst. Melts armor at medium range.', weaponClass: 'energy', unlockCost: 3000, baseUpgradeCost: 2500, accent: 'cyan' },
+  { id: 'frag_launcher', label: 'Frag Launcher', blurb: 'Bouncing grenades. Devastating area denial.', weaponClass: 'explosive', unlockCost: 5000, baseUpgradeCost: 4000, accent: 'orange' },
+  { id: 'shrapnel_blaster', label: 'Shrapnel Blaster', blurb: 'Wide cone of metal death. Up close and personal.', weaponClass: 'spread', unlockCost: 4000, baseUpgradeCost: 3000, accent: 'amber' },
+  { id: 'cryo_emitter', label: 'Cryo Emitter', blurb: 'Flash-freeze cone. Slows enemies to a crawl.', weaponClass: 'tech', unlockCost: 8000, baseUpgradeCost: 5000, accent: 'blue' },
+  { id: 'void_reaper', label: 'Void Reaper', blurb: 'Forbidden chain scythe. Reality itself recoils.', weaponClass: 'forbidden', unlockCost: 50000, baseUpgradeCost: 15000, accent: 'purple' },
+];
+
+// Upgrade cost multipliers per level: Lv1→2, Lv2→3, Lv3→4, Lv4→5
+const UPGRADE_COST_MULT = [1.0, 1.5, 2.5, 4.0];
+export function getUpgradeCost(base: number, currentLevel: number): number {
+  if (currentLevel >= MAX_WEAPON_LEVEL || currentLevel < 1) return Infinity;
+  return Math.floor(base * UPGRADE_COST_MULT[currentLevel - 1]);
+}
 
 export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover';
 
@@ -86,13 +125,15 @@ export const useStore = create<GameState>((set) => ({
   isGameOver: false,
   playerHealth: PLAYER_MAX_HEALTH,
   playerMaxHealth: PLAYER_MAX_HEALTH,
-  equippedWeapon: 'plasmacaster',
+  equippedWeapon: 'pulse_pistol' as WeaponType,
   weaponLevels: {
-    plasmacaster: 1,
-    shrapnel: 0,
-    bio: 0,
-    nuke: 0
-  },
+    pulse_pistol: 1,
+    plasma_caster: 0,
+    frag_launcher: 0,
+    shrapnel_blaster: 0,
+    cryo_emitter: 0,
+    void_reaper: 0,
+  } as Record<WeaponType, number>,
   hudSettings: {
     reticleScale: 1,
     highContrastReticle: false,
@@ -111,8 +152,8 @@ export const useStore = create<GameState>((set) => ({
     totalKills: 0,
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
-    equippedWeapon: 'plasmacaster' as WeaponType,
-    weaponLevels: { plasmacaster: 1, shrapnel: 0, bio: 0, nuke: 0 },
+    equippedWeapon: 'pulse_pistol' as WeaponType,
+    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0 },
     enemies: [
       { id: nextId(), position: [0, 4, -30] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
       { id: nextId(), position: [20, 3, -35] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
@@ -145,8 +186,8 @@ export const useStore = create<GameState>((set) => ({
     isGameOver: false,
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
-    equippedWeapon: 'plasmacaster',
-    weaponLevels: { plasmacaster: 1, shrapnel: 0, bio: 0, nuke: 0 },
+    equippedWeapon: 'pulse_pistol',
+    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0 },
   }),
   buyWeaponUpgrade: (weapon, cost) => {
     let success = false;

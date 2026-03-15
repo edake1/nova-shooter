@@ -15,17 +15,19 @@ import { useStore } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 
 const RETICLE_PROFILES = {
-  plasmacaster: { label: "PINPOINT", color: "#22d3ee", size: 90 },
-  shrapnel:     { label: "SPREAD",   color: "#f59e0b", size: 100 },
-  bio:          { label: "CORROSIVE",color: "#34d399", size: 94 },
-  nuke:         { label: "AOE LOCK", color: "#fb7185", size: 110 },
+  pulse_pistol:     { label: "KINETIC",   color: "#e2e8f0", size: 86 },
+  plasma_caster:    { label: "PLASMA",    color: "#22d3ee", size: 90 },
+  frag_launcher:    { label: "AOE LOCK",  color: "#f97316", size: 110 },
+  shrapnel_blaster: { label: "SPREAD",    color: "#f59e0b", size: 100 },
+  cryo_emitter:     { label: "CRYO",      color: "#60a5fa", size: 94 },
+  void_reaper:      { label: "VOID",      color: "#a855f7", size: 96 },
 } as const;
 
 function WeaponReticle({ weapon, bloom, pulse }: { weapon: string; bloom: number; pulse: boolean }) {
-  const p = RETICLE_PROFILES[weapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasmacaster;
+  const p = RETICLE_PROFILES[weapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.pulse_pistol;
   const s = p.size + bloom * 1.2;
 
-  if (weapon === "plasmacaster") {
+  if (weapon === "pulse_pistol" || weapon === "plasma_caster") {
     // Precision diamond + spinning inner ring + crosshair lines
     return (
       <svg width={s} height={s} viewBox="0 0 100 100" className={pulse ? "combat-reticle-pulse" : ""}>
@@ -49,7 +51,7 @@ function WeaponReticle({ weapon, bloom, pulse }: { weapon: string; bloom: number
     );
   }
 
-  if (weapon === "shrapnel") {
+  if (weapon === "shrapnel_blaster") {
     // Wide cone spread indicator — multiple expanding arcs
     return (
       <svg width={s} height={s} viewBox="0 0 100 100" className={pulse ? "combat-reticle-pulse" : ""}>
@@ -73,7 +75,7 @@ function WeaponReticle({ weapon, bloom, pulse }: { weapon: string; bloom: number
     );
   }
 
-  if (weapon === "bio") {
+  if (weapon === "void_reaper" || weapon === "cryo_emitter") {
     // Organic pulsing — irregular wobble paths + spore dots
     return (
       <svg width={s} height={s} viewBox="0 0 100 100" className={pulse ? "combat-reticle-pulse" : ""}>

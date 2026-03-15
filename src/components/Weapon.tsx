@@ -1,33 +1,45 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import * as THREE from "three";
-import { useStore, WeaponType } from "@/store";
+import { useStore, WeaponType, ExplosionType, WEAPON_CLASS } from "@/store";
 
-const WEAPON_PROFILE: Record<WeaponType, { damage: number; explosion: "plasma" | "shrapnel" | "bio" | "nuke"; fireRate: number }> = {
-  plasmacaster: { damage: 1, explosion: "plasma", fireRate: 0.15 },
-  shrapnel:     { damage: 2, explosion: "shrapnel", fireRate: 0.35 },
-  bio:          { damage: 1, explosion: "bio", fireRate: 0.25 },
-  nuke:         { damage: 4, explosion: "nuke", fireRate: 0.8 },
+const WEAPON_PROFILE: Record<WeaponType, { baseDamage: number; explosion: ExplosionType; fireRate: number }> = {
+  pulse_pistol:     { baseDamage: 1, explosion: "kinetic",   fireRate: 0.15 },
+  plasma_caster:    { baseDamage: 2, explosion: "energy",    fireRate: 0.30 },
+  frag_launcher:    { baseDamage: 4, explosion: "explosive", fireRate: 0.80 },
+  shrapnel_blaster: { baseDamage: 1, explosion: "spread",    fireRate: 0.35 },
+  cryo_emitter:     { baseDamage: 1, explosion: "tech",      fireRate: 0.20 },
+  void_reaper:      { baseDamage: 3, explosion: "forbidden", fireRate: 0.40 },
 };
 
-// Per-weapon fire sound mapping
+// Damage scales with weapon level: +20% per level
+function getWeaponDamage(weapon: WeaponType, level: number): number {
+  const base = WEAPON_PROFILE[weapon].baseDamage;
+  return Math.max(1, Math.round(base * (1 + (Math.max(level, 1) - 1) * 0.2)));
+}
+
+// Per-weapon fire sound mapping (reuse existing SFX files)
 const WEAPON_FIRE_SFX: Record<WeaponType, string> = {
-  plasmacaster: "/rescopicsound-sci-fi-weapon-shoot-firing-plasma-pp-02-233830.mp3",
-  shrapnel:     "/rescopicsound-sci-fi-weapon-shoot-firing-pulse-tm-04-233827.mp3",
-  bio:          "/rescopicsound-sci-fi-weapon-shoot-firing-pulse-tm-01-233821.mp3",
-  nuke:         "/do_what_you_want-bomb-explosion-469038.mp3",
+  pulse_pistol:     "/rescopicsound-sci-fi-weapon-shoot-firing-plasma-pp-02-233830.mp3",
+  plasma_caster:    "/rescopicsound-sci-fi-weapon-shoot-firing-pulse-tm-01-233821.mp3",
+  frag_launcher:    "/do_what_you_want-bomb-explosion-469038.mp3",
+  shrapnel_blaster: "/rescopicsound-sci-fi-weapon-shoot-firing-pulse-tm-04-233827.mp3",
+  cryo_emitter:     "/rescopicsound-sci-fi-weapon-shoot-firing-pulse-tm-01-233821.mp3",
+  void_reaper:      "/do_what_you_want-bomb-explosion-469038.mp3",
 };
 
 const WEAPON_FIRE_VOL: Record<WeaponType, number> = {
-  plasmacaster: 0.3, shrapnel: 0.35, bio: 0.25, nuke: 0.4,
+  pulse_pistol: 0.3, plasma_caster: 0.3, frag_launcher: 0.4, shrapnel_blaster: 0.35, cryo_emitter: 0.25, void_reaper: 0.35,
 };
 
 // Per-weapon barrel glow colors
 const WEAPON_COLORS: Record<WeaponType, { barrel: string; emissive: string; flash: string }> = {
-  plasmacaster: { barrel: "#0ff",    emissive: "#00ffff", flash: "#00ffff" },
-  shrapnel:     { barrel: "#f59e0b", emissive: "#ff8800", flash: "#ffaa00" },
-  bio:          { barrel: "#34d399", emissive: "#00ff88", flash: "#22ff66" },
-  nuke:         { barrel: "#fb7185", emissive: "#ff2255", flash: "#ff4466" },
+  pulse_pistol:     { barrel: "#aaa",    emissive: "#ffffff", flash: "#ffffff" },
+  plasma_caster:    { barrel: "#0ff",    emissive: "#00ffff", flash: "#00ffff" },
+  frag_launcher:    { barrel: "#ff6600", emissive: "#ff4400", flash: "#ff8800" },
+  shrapnel_blaster: { barrel: "#f59e0b", emissive: "#ff8800", flash: "#ffaa00" },
+  cryo_emitter:     { barrel: "#60a5fa", emissive: "#3b82f6", flash: "#93c5fd" },
+  void_reaper:      { barrel: "#a855f7", emissive: "#7c3aed", flash: "#c084fc" },
 };
 
 // Audio pool — reuse a small set of Audio elements instead of creating new ones per shot
@@ -96,7 +108,7 @@ export function Weapon() {
   const enemyPos = useMemo(() => new THREE.Vector3(), []);
 
   // Helper: damage or kill a single enemy, returns true if killed
-  const hitEnemy = useCallback((state: ReturnType<typeof useStore.getState>, enemyId: number, damage: number, explosion: "plasma" | "shrapnel" | "bio" | "nuke", hitObj?: THREE.Object3D) => {
+  const hitEnemy = useCallback((state: ReturnType<typeof useStore.getState>, enemyId: number, damage: number, explosion: ExplosionType, hitObj?: THREE.Object3D) => {
     const enemy = state.enemies.find(e => e.id === enemyId);
     if (!enemy) return false;
     if (enemy.health <= damage) {
@@ -138,9 +150,14 @@ export function Weapon() {
       const now = performance.now() / 1000;
       const state = useStore.getState();
       const weapon = state.equippedWeapon;
+      const weaponLevel = state.weaponLevels[weapon];
       const profile = WEAPON_PROFILE[weapon];
-      if (now - lastFireRef.current < profile.fireRate) return;
+      const fireRateMult = 1 + (Math.max(weaponLevel, 1) - 1) * 0.1;
+      const effectiveRate = profile.fireRate / fireRateMult;
+      if (now - lastFireRef.current < effectiveRate) return;
       lastFireRef.current = now;
+
+      const damage = getWeaponDamage(weapon, weaponLevel);
 
       recoilRef.current = 1;
       flashTimerRef.current = 0.05;
@@ -151,10 +168,10 @@ export function Weapon() {
       const baseOrigin = raycaster.ray.origin.clone();
       const baseDir = raycaster.ray.direction.clone();
 
-      if (weapon === "shrapnel") {
+      if (weapon === "shrapnel_blaster") {
         // SHRAPNEL: 5 rays in a cone spread
-        const PELLETS = 5;
-        const SPREAD = 0.06; // radians of random deviation
+        const PELLETS = 5 + Math.floor(weaponLevel / 2); // more pellets at higher levels
+        const SPREAD = 0.06;
         let anyHit = false;
         let anyKill = false;
         const hitIds = new Set<number>();
@@ -169,7 +186,7 @@ export function Weapon() {
           const result = raycastEnemy(baseOrigin, spreadDir);
           if (result && !hitIds.has(result.id)) {
             hitIds.add(result.id);
-            const killed = hitEnemy(state, result.id, profile.damage, profile.explosion, result.obj);
+            const killed = hitEnemy(state, result.id, damage, profile.explosion, result.obj);
             if (killed) { anyKill = true; playKillSound(); }
             anyHit = true;
           }
@@ -177,9 +194,9 @@ export function Weapon() {
         if (anyKill) window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "kill" } }));
         else if (anyHit) { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "hit" } })); playHitSound(); }
 
-      } else if (weapon === "nuke") {
-        // NUKE: single ray, but AOE blast at impact point
-        const AOE_RADIUS = 12;
+      } else if (weapon === "frag_launcher") {
+        // FRAG LAUNCHER: single ray, AOE blast at impact point
+        const AOE_RADIUS = 12 + weaponLevel;
         const intersects = raycaster.intersectObjects(scene.children, true);
         let impactPoint: THREE.Vector3 | null = null;
 
@@ -190,7 +207,7 @@ export function Weapon() {
           let obj: THREE.Object3D | null = intersects[0].object;
           while (obj) {
             if (obj.userData?.isEnemy) {
-              hitEnemy(state, obj.userData.id, profile.damage, profile.explosion, obj);
+              hitEnemy(state, obj.userData.id, damage, profile.explosion, obj);
               break;
             }
             obj = obj.parent;
@@ -199,7 +216,7 @@ export function Weapon() {
 
         if (impactPoint) {
           aoePos.copy(impactPoint);
-          state.addExplosion([aoePos.x, aoePos.y, aoePos.z], "#ff4466", profile.explosion);
+          state.addExplosion([aoePos.x, aoePos.y, aoePos.z], "#ff8800", profile.explosion);
 
           // Damage all enemies within AOE_RADIUS
           let killCount = 0;
@@ -208,7 +225,7 @@ export function Weapon() {
             const dist = enemyPos.distanceTo(aoePos);
             if (dist < AOE_RADIUS) {
               const falloff = 1 - (dist / AOE_RADIUS);
-              const aoeDmg = Math.max(1, Math.floor(profile.damage * falloff));
+              const aoeDmg = Math.max(1, Math.floor(damage * falloff));
               const killed = hitEnemy(useStore.getState(), enemy.id, aoeDmg, profile.explosion);
               if (killed) killCount++;
             }
@@ -217,10 +234,10 @@ export function Weapon() {
           else { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "hit" } })); playHitSound(); }
         }
 
-      } else if (weapon === "bio") {
-        // BIO: single ray hit, then chain to nearby enemies
-        const CHAIN_RANGE = 10;
-        const CHAIN_DMG = 1;
+      } else if (weapon === "void_reaper") {
+        // VOID REAPER: single ray hit, then chain to nearby enemies
+        const CHAIN_RANGE = 10 + weaponLevel * 2;
+        const CHAIN_DMG = Math.max(1, Math.floor(damage * 0.6));
         const intersects = raycaster.intersectObjects(scene.children, true);
 
         if (intersects.length > 0) {
@@ -228,7 +245,7 @@ export function Weapon() {
           while (obj) {
             if (obj.userData?.isEnemy) {
               const targetId = obj.userData.id;
-              const killed = hitEnemy(state, targetId, profile.damage, profile.explosion, obj);
+              const killed = hitEnemy(state, targetId, damage, profile.explosion, obj);
               if (killed) { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "kill" } })); playKillSound(); }
               else { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "hit" } })); playHitSound(); }
 
@@ -248,18 +265,31 @@ export function Weapon() {
         }
 
       } else {
-        // PLASMACASTER: standard single raycast
-        const intersects = raycaster.intersectObjects(scene.children, true);
-        if (intersects.length > 0) {
-          let obj: THREE.Object3D | null = intersects[0].object;
-          while (obj) {
-            if (obj.userData?.isEnemy) {
-              const killed = hitEnemy(state, obj.userData.id, profile.damage, profile.explosion, obj);
-              if (killed) { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "kill" } })); playKillSound(); }
-              else { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "hit" } })); playHitSound(); }
-              break;
+        // DEFAULT (pulse_pistol, plasma_caster, cryo_emitter): single/burst raycast
+        const burstCount = weapon === "plasma_caster" ? 3 : 1;
+        const burstSpread = weapon === "plasma_caster" ? 0.02 : 0;
+        
+        for (let b = 0; b < burstCount; b++) {
+          const dir = baseDir.clone();
+          if (b > 0) {
+            dir.x += (Math.random() - 0.5) * burstSpread * 2;
+            dir.y += (Math.random() - 0.5) * burstSpread * 2;
+            dir.normalize();
+          }
+          raycaster.set(baseOrigin, dir);
+          raycaster.far = 200;
+          const intersects = raycaster.intersectObjects(scene.children, true);
+          if (intersects.length > 0) {
+            let obj: THREE.Object3D | null = intersects[0].object;
+            while (obj) {
+              if (obj.userData?.isEnemy) {
+                const killed = hitEnemy(state, obj.userData.id, damage, profile.explosion, obj);
+                if (killed) { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "kill" } })); playKillSound(); }
+                else { window.dispatchEvent(new CustomEvent("nova:hit", { detail: { kind: "hit" } })); playHitSound(); }
+                break;
+              }
+              obj = obj.parent;
             }
-            obj = obj.parent;
           }
         }
       }

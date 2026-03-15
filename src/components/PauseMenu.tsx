@@ -1,26 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useStore } from "@/store";
+import { useStore, WEAPON_PROFILES, MAX_WEAPON_LEVEL, getUpgradeCost } from "@/store";
 import type { WeaponType } from "@/store";
 
 type Tab = "arsenal" | "telemetry" | "settings";
-
-type WeaponCard = {
-  id: WeaponType;
-  label: string;
-  blurb: string;
-  unlockCost: number;
-  baseUpgrade: number;
-  accent: string;
-};
-
-const WEAPONS: WeaponCard[] = [
-  { id: "plasmacaster", label: "Plasmacaster", blurb: "Precision raycast. Stable burst timing, clean single-target deletion.", unlockCost: 0, baseUpgrade: 2500, accent: "cyan" },
-  { id: "shrapnel", label: "Shrapnel Cannon", blurb: "Close-range cone spread. Melts swarm packs, punishes flanks.", unlockCost: 5000, baseUpgrade: 4500, accent: "amber" },
-  { id: "bio", label: "Bio-Infection", blurb: "Corrosive payload. Chained damage-over-time propagation.", unlockCost: 12000, baseUpgrade: 8000, accent: "emerald" },
-  { id: "nuke", label: "Apocalyptic Core", blurb: "High-yield detonation. Screen-clearing catastrophic bursts.", unlockCost: 50000, baseUpgrade: 30000, accent: "rose" },
-];
 
 const UI_SFX = {
   hover: "/ribhavagrawal-achievement-video-game-type-1-230515.mp3",
@@ -36,11 +20,23 @@ function playUiSound(src: string, vol = 0.35) {
 }
 
 function getWeaponStats(id: WeaponType, level: number) {
-  if (id === "plasmacaster") return { damage: 30 + level * 8, spread: 8, cadence: 72 + level * 3, aoe: 12 + level * 2 };
-  if (id === "shrapnel") return { damage: 22 + level * 6, spread: 70, cadence: 58 + level * 2, aoe: 34 + level * 4 };
-  if (id === "bio") return { damage: 16 + level * 4, spread: 20, cadence: 46 + level * 3, aoe: 45 + level * 5 };
-  return { damage: 80 + level * 10, spread: 15, cadence: 22 + level * 2, aoe: 95 };
+  const l = Math.max(level, 1);
+  const dmgMult = 1 + (l - 1) * 0.2;
+  const rateMult = 1 + (l - 1) * 0.1;
+  switch (id) {
+    case 'pulse_pistol':     return { damage: Math.round(25 * dmgMult), rate: Math.round(80 * rateMult), range: 70, special: 15 + l * 3 };
+    case 'plasma_caster':    return { damage: Math.round(35 * dmgMult), rate: Math.round(55 * rateMult), range: 60, special: 20 + l * 5 };
+    case 'frag_launcher':    return { damage: Math.round(60 * dmgMult), rate: Math.round(30 * rateMult), range: 45, special: 40 + l * 8 };
+    case 'shrapnel_blaster': return { damage: Math.round(20 * dmgMult), rate: Math.round(50 * rateMult), range: 30, special: 65 + l * 5 };
+    case 'cryo_emitter':     return { damage: Math.round(10 * dmgMult), rate: Math.round(70 * rateMult), range: 20, special: 55 + l * 7 };
+    case 'void_reaper':      return { damage: Math.round(80 * dmgMult), rate: Math.round(35 * rateMult), range: 50, special: 85 + l * 3 };
+    default:                 return { damage: 25, rate: 60, range: 50, special: 20 };
+  }
 }
+
+const STAT_LABELS: Record<string, string> = {
+  damage: 'DMG', rate: 'RATE', range: 'RNG', special: 'SPL'
+};
 
 const TAB_LABELS: { id: Tab; label: string; hotkey: string }[] = [
   { id: "arsenal", label: "ARSENAL", hotkey: "F1" },
@@ -51,8 +47,11 @@ const TAB_LABELS: { id: Tab; label: string; hotkey: string }[] = [
 function accentClasses(accent: string) {
   if (accent === "cyan") return "border-cyan-400/40 text-cyan-300 bg-cyan-500/10";
   if (accent === "amber") return "border-amber-400/40 text-amber-300 bg-amber-500/10";
-  if (accent === "emerald") return "border-emerald-400/40 text-emerald-300 bg-emerald-500/10";
-  return "border-rose-400/40 text-rose-300 bg-rose-500/10";
+  if (accent === "orange") return "border-orange-400/40 text-orange-300 bg-orange-500/10";
+  if (accent === "blue") return "border-blue-400/40 text-blue-300 bg-blue-500/10";
+  if (accent === "purple") return "border-purple-400/40 text-purple-300 bg-purple-500/10";
+  if (accent === "slate") return "border-slate-400/40 text-slate-300 bg-slate-500/10";
+  return "border-cyan-400/40 text-cyan-300 bg-cyan-500/10";
 }
 
 export function PauseMenu() {
@@ -69,11 +68,12 @@ export function PauseMenu() {
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
 
-  const cards = useMemo(() => WEAPONS.map((w) => {
+  const cards = useMemo(() => WEAPON_PROFILES.map((w) => {
     const wl = weaponLevels[w.id];
     const unlocked = wl > 0;
-    const upgCost = Math.floor(w.baseUpgrade * (1 + Math.max(wl - 1, 0) * 0.5));
-    return { ...w, weaponLevel: wl, unlocked, equipped: unlocked && equippedWeapon === w.id, upgradeCost: upgCost, canUnlock: score >= w.unlockCost, canUpgrade: score >= upgCost };
+    const maxed = wl >= MAX_WEAPON_LEVEL;
+    const upgCost = getUpgradeCost(w.baseUpgradeCost, wl);
+    return { ...w, weaponLevel: wl, unlocked, maxed, equipped: unlocked && equippedWeapon === w.id, upgradeCost: upgCost, canUnlock: score >= w.unlockCost, canUpgrade: !maxed && score >= upgCost };
   }), [equippedWeapon, score, weaponLevels]);
 
   useEffect(() => {
@@ -86,10 +86,7 @@ export function PauseMenu() {
 
       if (e.code.startsWith("Digit")) {
         const idx = Number(e.code.replace("Digit", "")) - 1;
-        const weps = ["plasmacaster", "shrapnel", "bio", "nuke"] as const;
-        const w = weps[idx];
-        if (!w) return;
-        const card = cards.find(c => c.id === w);
+        const card = cards[idx];
         if (!card) return;
         if (!card.unlocked) {
           if (buyWeaponUpgrade(card.id, card.unlockCost)) { playUiSound(UI_SFX.success, 0.4); setStatusLine("UNLOCKED " + card.label.toUpperCase()); }
@@ -163,50 +160,74 @@ export function PauseMenu() {
         <div className="min-h-[380px]">
 
           {activeTab === "arsenal" && (
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {cards.map((card) => {
-                const stateLabel = card.equipped ? "EQUIPPED" : card.unlocked ? "UNLOCKED" : "LOCKED";
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {cards.map((card, idx) => {
+                const stateLabel = card.maxed ? "MASTERED" : card.equipped ? "EQUIPPED" : card.unlocked ? `LV ${card.weaponLevel}` : "LOCKED";
+                const stats = getWeaponStats(card.id, Math.max(card.weaponLevel, 1));
                 return (
                   <article key={card.id}
-                    className={`relative overflow-hidden rounded-xl border bg-[linear-gradient(150deg,rgba(15,23,42,0.86),rgba(2,6,23,0.76))] p-4 shadow-[0_14px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(34,211,238,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(0,0,0,0.5),0_0_22px_rgba(34,211,238,0.22)] ${card.equipped ? "border-cyan-400/60 ring-1 ring-cyan-400/20" : "border-cyan-300/25 hover:border-cyan-300/50"}`}
-                    onMouseEnter={() => playUiSound(UI_SFX.hover, 0.18)}
+                    className={`relative overflow-hidden rounded-lg border bg-[linear-gradient(150deg,rgba(15,23,42,0.9),rgba(2,6,23,0.8))] p-3 transition-all duration-200 hover:shadow-[0_0_16px_rgba(34,211,238,0.15)] ${card.equipped ? "border-cyan-400/60 ring-1 ring-cyan-400/20" : "border-cyan-300/20 hover:border-cyan-300/40"}`}
+                    onMouseEnter={() => playUiSound(UI_SFX.hover, 0.12)}
                   >
-                    <div className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-cyan-400/10 blur-3xl" />
-                    <div className="absolute right-3 top-3">
-                      <span className={`rounded px-2 py-1 font-mono text-[10px] tracking-wide border ${accentClasses(card.accent)}`}>{stateLabel}</span>
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-orbitron text-white text-sm font-bold truncate">{card.label}</h3>
+                        <p className="text-[10px] text-cyan-400/60 font-mono uppercase tracking-wider">{card.weaponClass} class</p>
+                      </div>
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] tracking-wide border ${accentClasses(card.accent)}`}>{stateLabel}</span>
                     </div>
-                    <h3 className="font-orbitron text-white text-xl font-bold">{card.label} <span className="text-cyan-400/80 text-base">[Lv {card.weaponLevel}]</span></h3>
-                    <p className="mt-1.5 text-sm text-slate-100/90 leading-relaxed">{card.blurb}</p>
-                    <div className="mt-3 space-y-1.5">
-                      {Object.entries(getWeaponStats(card.id, Math.max(card.weaponLevel, 1))).map(([key, val]) => (
-                        <div key={key}>
-                          <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.18em] text-slate-200"><span>{key}</span><span className="text-white font-bold">{Math.min(100, val)}</span></div>
-                          <div className="h-1.5 overflow-hidden rounded-full border border-cyan-300/20 bg-slate-900/85">
-                            <div className="h-full bg-gradient-to-r from-cyan-300 via-blue-300 to-violet-300 transition-all duration-500 shadow-[0_0_10px_rgba(103,232,249,0.6)]" style={{ width: `${Math.min(100, val)}%` }} />
+
+                    {/* Compact stat bars */}
+                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                      {Object.entries(stats).map(([key, val]) => (
+                        <div key={key} className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-mono text-slate-400 w-7 uppercase">{STAT_LABELS[key] || key}</span>
+                          <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-400 transition-all duration-300" style={{ width: `${Math.min(100, val)}%` }} />
                           </div>
+                          <span className="text-[9px] font-mono text-slate-300 w-5 text-right">{Math.min(100, val)}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+
+                    {/* Level dots */}
+                    {card.unlocked && (
+                      <div className="mt-2 flex items-center gap-1">
+                        {Array.from({ length: MAX_WEAPON_LEVEL }, (_, i) => (
+                          <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < card.weaponLevel ? 'bg-cyan-400' : 'bg-slate-700'}`} />
+                        ))}
+                        <span className="ml-1 text-[9px] font-mono text-cyan-400/60">Lv{card.weaponLevel}/{MAX_WEAPON_LEVEL}</span>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="mt-2 flex items-center gap-1.5">
                       {!card.unlocked && (
                         <button type="button" disabled={!card.canUnlock}
                           onClick={() => { if (buyWeaponUpgrade(card.id, card.unlockCost)) { playUiSound(UI_SFX.success, 0.4); setStatusLine("UNLOCKED " + card.label.toUpperCase()); } else { playUiSound(UI_SFX.denied, 0.25); setStatusLine("INSUFFICIENT INTEL"); } }}
-                          className="rounded border border-cyan-500/60 bg-cyan-500/15 px-3 py-1.5 text-sm font-bold tracking-wide text-cyan-300 transition hover:bg-cyan-400/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="rounded border border-cyan-500/50 bg-cyan-500/10 px-2 py-1 text-[11px] font-bold tracking-wide text-cyan-300 transition hover:bg-cyan-400/25 disabled:opacity-35 disabled:cursor-not-allowed"
                         >UNLOCK {card.unlockCost.toLocaleString()}</button>
                       )}
                       {card.unlocked && !card.equipped && (
                         <button type="button"
-                          onClick={() => { equipWeapon(card.id); playUiSound(UI_SFX.equip, 0.35); setStatusLine("EQUIPPED " + card.label.toUpperCase()); }}
-                          className="rounded border border-white/40 bg-white/10 px-3 py-1.5 text-sm font-bold tracking-wide text-white transition hover:bg-white/20"
+                          onClick={() => { equipWeapon(card.id); playUiSound(UI_SFX.equip, 0.3); setStatusLine("EQUIPPED " + card.label.toUpperCase()); }}
+                          className="rounded border border-white/30 bg-white/8 px-2 py-1 text-[11px] font-bold tracking-wide text-white transition hover:bg-white/15"
                         >EQUIP</button>
                       )}
-                      {card.unlocked && (
+                      {card.unlocked && !card.maxed && (
                         <button type="button" disabled={!card.canUpgrade}
                           onClick={() => { if (buyWeaponUpgrade(card.id, card.upgradeCost)) { playUiSound(UI_SFX.success, 0.4); setStatusLine("UPGRADED " + card.label.toUpperCase()); } else { playUiSound(UI_SFX.denied, 0.25); setStatusLine("INSUFFICIENT INTEL"); } }}
-                          className="rounded border border-cyan-400/60 bg-cyan-500/10 px-3 py-1.5 text-sm font-bold tracking-wide text-cyan-200 transition hover:bg-cyan-400/25 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >UPGRADE {card.upgradeCost.toLocaleString()}</button>
+                          className="rounded border border-cyan-400/50 bg-cyan-500/8 px-2 py-1 text-[11px] font-bold tracking-wide text-cyan-200 transition hover:bg-cyan-400/20 disabled:opacity-35 disabled:cursor-not-allowed"
+                        >UPGRADE {card.upgradeCost === Infinity ? 'MAX' : card.upgradeCost.toLocaleString()}</button>
                       )}
-                      {card.equipped && <span className="rounded border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 font-mono text-xs tracking-wider text-cyan-300">★ PRIMARY</span>}
+                      {card.equipped && <span className="ml-auto text-[10px] font-mono text-cyan-400">★ PRIMARY</span>}
+                      {card.maxed && <span className="ml-auto text-[10px] font-mono text-amber-400">✦ MASTERED</span>}
+                    </div>
+
+                    {/* Hotkey hint */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                      <span className="text-[8px] font-mono text-cyan-500/50">[{idx + 1}]</span>
                     </div>
                   </article>
                 );
