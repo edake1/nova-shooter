@@ -114,6 +114,7 @@ export function Enemies() {
 
 function Enemy({ enemy }: { enemy: EnemyData }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const animGroupRef = useRef<THREE.Group>(null);
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const lastThreatAtRef = useRef(0);
   const lastDamageAtRef = useRef(0);
@@ -149,8 +150,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
     if (useStore.getState().gamePhase !== 'playing') return;
 
     if (meshRef.current && rigidBodyRef.current) {
-      // Rotate the enemy
-      meshRef.current.rotation.x += traits.rotSpeed;
+      // Idle rotation (Y-axis only — compound designs look better without tumbling)
       meshRef.current.rotation.y += traits.rotSpeed * 2;
 
       const playerPos = state.camera.position;
@@ -301,6 +301,11 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
         );
       }
 
+      // Animate orbiting/spinning sub-parts
+      if (animGroupRef.current) {
+        animGroupRef.current.rotation.y += enemy.type === 'swarmer' ? 0.08 : enemy.type === 'shielder' ? 0.02 : 0.012;
+      }
+
       rigidBodyRef.current.setLinvel({
         x: moveDir.x * speed,
         y: t.y < 3 * currentScale ? traits.speed : -0.5,
@@ -361,15 +366,52 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
            />
         </mesh>
 
-        {/* Spitter: orbiting energy rings */}
-        {enemy.type === 'spitter' && (
-          <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[1.1, 0.04, 8, 32]} />
-            <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={6} toneMapped={false} />
-          </mesh>
-        )}
+        {/* Animated sub-parts group (orbiting rings, shield plates, etc.) */}
+        <group ref={animGroupRef}>
+          {/* Spitter: orbiting energy rings */}
+          {enemy.type === 'spitter' && (
+            <>
+              <mesh rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[1.1, 0.04, 8, 32]} />
+                <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={6} toneMapped={false} />
+              </mesh>
+              <mesh rotation={[Math.PI / 3, Math.PI / 4, 0]}>
+                <torusGeometry args={[1.3, 0.03, 8, 32]} />
+                <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={4} toneMapped={false} />
+              </mesh>
+            </>
+          )}
 
-        {/* Charger: forward-facing ram spikes */}
+          {/* Shielder: hexagonal shield plates */}
+          {enemy.type === 'shielder' && (
+            <>
+              <mesh>
+                <icosahedronGeometry args={[1.9, 1]} />
+                <meshStandardMaterial color="#001a33" emissive="#0066ff" emissiveIntensity={1.5} transparent opacity={0.08} wireframe />
+              </mesh>
+              <mesh>
+                <icosahedronGeometry args={[2.1, 0]} />
+                <meshStandardMaterial color="#003366" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.12} wireframe />
+              </mesh>
+            </>
+          )}
+
+          {/* Hive Queen: spinning torus rings */}
+          {enemy.type === 'hive_queen' && (
+            <>
+              <mesh rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[1.6, 0.06, 8, 32]} />
+                <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
+              </mesh>
+              <mesh rotation={[0, 0, Math.PI / 2]}>
+                <torusGeometry args={[1.6, 0.06, 8, 32]} />
+                <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
+              </mesh>
+            </>
+          )}
+        </group>
+
+        {/* Charger: forward-facing ram spikes (static, attached to body) */}
         {enemy.type === 'charger' && (
           <>
             <mesh position={[0, 0, 1.4]} rotation={[Math.PI / 2, 0, 0]}>
@@ -387,20 +429,6 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
           </>
         )}
 
-        {/* Shielder: hexagonal shield plates */}
-        {enemy.type === 'shielder' && (
-          <>
-            <mesh>
-              <icosahedronGeometry args={[1.9, 1]} />
-              <meshStandardMaterial color="#001a33" emissive="#0066ff" emissiveIntensity={1.5} transparent opacity={0.08} wireframe />
-            </mesh>
-            <mesh>
-              <icosahedronGeometry args={[2.1, 0]} />
-              <meshStandardMaterial color="#003366" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.12} wireframe />
-            </mesh>
-          </>
-        )}
-
         {/* Phantom: ghostly outer shell */}
         {enemy.type === 'phantom' && (
           <mesh>
@@ -409,22 +437,12 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
           </mesh>
         )}
 
-        {/* Hive Queen: pulsing organic outer shell + tentacle rings */}
+        {/* Hive Queen: pulsing organic outer shell (static) */}
         {enemy.type === 'hive_queen' && (
-          <>
-            <mesh>
-              <icosahedronGeometry args={[2.0, 0]} />
-              <meshStandardMaterial color="#1a001a" emissive="#ff00aa" emissiveIntensity={2} transparent opacity={0.12} wireframe />
-            </mesh>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <torusGeometry args={[1.6, 0.06, 8, 32]} />
-              <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
-            </mesh>
-            <mesh rotation={[0, 0, Math.PI / 2]}>
-              <torusGeometry args={[1.6, 0.06, 8, 32]} />
-              <meshStandardMaterial color="#000" emissive="#ff44cc" emissiveIntensity={6} toneMapped={false} />
-            </mesh>
-          </>
+          <mesh>
+            <icosahedronGeometry args={[2.0, 0]} />
+            <meshStandardMaterial color="#1a001a" emissive="#ff00aa" emissiveIntensity={2} transparent opacity={0.12} wireframe />
+          </mesh>
         )}
 
         {/* Juggernaut: armored plates */}
