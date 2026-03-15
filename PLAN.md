@@ -244,7 +244,7 @@ exploration and mastery.
 - [x] Weapon penetration at level 3+ for kinetic/beam weapons
 - [x] Shoot-down enemy projectiles
 - [x] Combo system with 7 tiers (COMBO→RAMPAGE→CARNAGE→MASSACRE→GODLIKE→NOVA STREAK, 1x-5x score)
-- [ ] Charged shots (hold to charge, release for bonus damage)
+- [x] Charged shots (hold to charge, release for bonus damage)
 - [ ] Weapon-class-specific kill effects
 - [ ] Visual upgrades per level (glow, particles, geometry)
 
@@ -319,7 +319,7 @@ exploration and mastery.
 - [x] Directional damage indicators
 - [x] Combo HUD with animated counter and tier labels
 - [x] Minimap/radar (bottom-left, shows enemy positions as dots)
-- [ ] Boss health bar (top-center)
+- [x] Boss health bar (top-center)
 - [x] Damage numbers floating above enemies
 - [x] Screen shake on explosions
 - [ ] Arena improvements (multiple rooms, moving platforms, cover)
