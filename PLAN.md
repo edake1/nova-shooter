@@ -310,7 +310,7 @@ exploration and mastery.
 ### Phase 10: Leaderboard & Social
 - [x] End-of-run stats screen (score, level, kills)
 - [x] Local high score table (top 10, stored in localStorage)
-- [ ] Online leaderboard (future — requires backend)
+- [x] Online leaderboard (Neon serverless Postgres + Next.js API routes)
 - [ ] Share score screenshot
 
 ### Phase 11: UI & Polish (partial)
@@ -325,3 +325,24 @@ exploration and mastery.
 - [ ] Arena improvements (multiple rooms, moving platforms, cover)
 - [ ] Loading screen with tips
 - [ ] Weapon inspect mode (rotate 3D model in Arsenal)
+
+### Phase 12: Deployment & Infrastructure
+- **Platform:** Vercel (zero-config Next.js hosting, free tier)
+- **Database:** Neon serverless Postgres (free tier: 0.5 GB, 190 compute-hours/month)
+- **Driver:** `@neondatabase/serverless` — works in Vercel edge/serverless functions
+- **Env var:** `DATABASE_URL` — Neon connection string (set in Vercel project settings)
+- **API routes:** `GET /api/scores` (top 100), `POST /api/scores` (submit + return rank)
+- **Schema:**
+  ```sql
+  CREATE TABLE IF NOT EXISTS scores (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(20) NOT NULL DEFAULT 'ANON',
+    score INTEGER NOT NULL,
+    level INTEGER NOT NULL,
+    kills INTEGER NOT NULL,
+    max_combo INTEGER NOT NULL DEFAULT 0,
+    weapon VARCHAR(50) NOT NULL DEFAULT 'pulse_pistol',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  );
+  CREATE INDEX idx_scores_score ON scores(score DESC);
+  ```

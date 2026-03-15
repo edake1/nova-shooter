@@ -231,6 +231,17 @@ export default function Game() {
   const [highScores, setHighScores] = useState<HighScoreEntry[]>([]);
   const playerPosRef = useRef<[number, number, number]>([0, 0, 0]);
   const [playerPos, setPlayerPos] = useState<[number, number, number]>([0, 0, 0]);
+  // Global leaderboard
+  const [globalScores, setGlobalScores] = useState<{ username: string; score: number; level: number; kills: number; max_combo: number; weapon: string }[]>([]);
+  const [globalRank, setGlobalRank] = useState<number | null>(null);
+  const [playerName, setPlayerName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nova_player_name') || '';
+    }
+    return '';
+  });
+  const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('global');
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
@@ -249,6 +260,13 @@ export default function Game() {
   useEffect(() => {
     if (gamePhase === 'gameover') {
       setHighScores(getHighScores());
+      setScoreSubmitted(false);
+      setGlobalRank(null);
+      // Fetch global leaderboard
+      fetch('/api/scores')
+        .then(r => r.json())
+        .then(data => setGlobalScores(data.scores ?? []))
+        .catch(() => setGlobalScores([]));
     }
   }, [gamePhase]);
 
@@ -977,22 +995,103 @@ export default function Game() {
                 </div>
               </div>
 
-              {/* High Scores */}
-              {highScores.length > 0 && (
-                <div className="mt-4 rounded-lg border border-red-500/20 bg-red-950/15 p-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.6s both' }}>
-                  <h3 className="text-red-300/70 font-mono text-[10px] uppercase tracking-widest font-bold mb-2">TOP SCORES</h3>
-                  <div className="space-y-1 max-h-[180px] overflow-y-auto">
-                    {highScores.slice(0, 5).map((hs, i) => (
-                      <div key={i} className={`flex justify-between items-center font-mono text-xs px-2 py-1 rounded ${hs.score === score && hs.kills === totalKills ? 'bg-red-500/15 text-white' : 'text-slate-400'}`}>
-                        <span className="text-red-300/50 w-5">{i + 1}.</span>
-                        <span className="flex-1 font-bold">{hs.score.toLocaleString()}</span>
-                        <span className="text-slate-500 ml-3">Lv{hs.level}</span>
-                        <span className="text-slate-500 ml-3">{hs.kills}K</span>
-                      </div>
-                    ))}
+              {/* Submit Score */}
+              <div className="mt-4" style={{ animation: 'gameover-fadein 0.8s ease-out 0.55s both' }}>
+                {!scoreSubmitted ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="ENTER NAME..."
+                      maxLength={20}
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      className="flex-1 rounded-lg border border-red-500/30 bg-black/60 px-3 py-2.5 font-mono text-sm text-white uppercase tracking-wider placeholder:text-slate-600 focus:outline-none focus:border-cyan-400/60 transition"
+                    />
+                    <button
+                      onClick={async () => {
+                        const name = playerName.trim() || 'ANON';
+                        localStorage.setItem('nova_player_name', name);
+                        setScoreSubmitted(true);
+                        try {
+                          const res = await fetch('/api/scores', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              username: name,
+                              score,
+                              level,
+                              kills: totalKills,
+                              maxCombo: combo.maxCombo,
+                              weapon: equippedWeapon,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.rank) setGlobalRank(Number(data.rank));
+                          // Refresh global scores
+                          const lb = await fetch('/api/scores').then(r => r.json());
+                          setGlobalScores(lb.scores ?? []);
+                        } catch {
+                          // Offline fallback — score still saved locally
+                        }
+                      }}
+                      className="rounded-lg border border-cyan-400/60 bg-cyan-500/15 px-5 py-2.5 font-orbitron font-bold text-sm text-cyan-200 uppercase tracking-wider hover:bg-cyan-400/25 transition cursor-pointer"
+                    >
+                      SUBMIT
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <p className="font-mono text-sm text-cyan-300">
+                      SCORE UPLOADED{globalRank ? ` — RANK #${globalRank}` : ''}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Leaderboard Tabs */}
+              <div className="mt-4" style={{ animation: 'gameover-fadein 0.8s ease-out 0.6s both' }}>
+                <div className="flex gap-1 mb-2">
+                  <button
+                    onClick={() => setLeaderboardTab('global')}
+                    className={`flex-1 py-1.5 rounded font-mono text-[10px] uppercase tracking-widest font-bold transition ${leaderboardTab === 'global' ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'text-slate-500 border border-transparent hover:text-slate-300'}`}
+                  >GLOBAL</button>
+                  <button
+                    onClick={() => setLeaderboardTab('local')}
+                    className={`flex-1 py-1.5 rounded font-mono text-[10px] uppercase tracking-widest font-bold transition ${leaderboardTab === 'local' ? 'bg-red-500/20 text-red-300 border border-red-500/40' : 'text-slate-500 border border-transparent hover:text-slate-300'}`}
+                  >LOCAL</button>
+                </div>
+
+                <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-3">
+                  <div className="space-y-1 max-h-[160px] overflow-y-auto">
+                    {leaderboardTab === 'global' ? (
+                      globalScores.length > 0 ? globalScores.slice(0, 10).map((gs, i) => (
+                        <div key={i} className={`flex items-center font-mono text-xs px-2 py-1 rounded ${gs.username === (playerName.trim() || 'ANON') && gs.score === score ? 'bg-cyan-500/15 text-white' : 'text-slate-400'}`}>
+                          <span className="text-cyan-300/50 w-5 shrink-0">{i + 1}.</span>
+                          <span className="w-20 truncate font-bold text-white/80">{gs.username}</span>
+                          <span className="flex-1 text-right font-bold">{gs.score.toLocaleString()}</span>
+                          <span className="text-slate-500 ml-3 w-8 text-right">Lv{gs.level}</span>
+                          <span className="text-slate-500 ml-2 w-8 text-right">{gs.kills}K</span>
+                        </div>
+                      )) : (
+                        <p className="text-slate-500 font-mono text-xs text-center py-4">
+                          {globalScores.length === 0 ? 'No scores yet — be the first!' : 'Loading...'}
+                        </p>
+                      )
+                    ) : (
+                      highScores.length > 0 ? highScores.slice(0, 5).map((hs, i) => (
+                        <div key={i} className={`flex justify-between items-center font-mono text-xs px-2 py-1 rounded ${hs.score === score && hs.kills === totalKills ? 'bg-red-500/15 text-white' : 'text-slate-400'}`}>
+                          <span className="text-red-300/50 w-5">{i + 1}.</span>
+                          <span className="flex-1 font-bold">{hs.score.toLocaleString()}</span>
+                          <span className="text-slate-500 ml-3">Lv{hs.level}</span>
+                          <span className="text-slate-500 ml-3">{hs.kills}K</span>
+                        </div>
+                      )) : (
+                        <p className="text-slate-500 font-mono text-xs text-center py-4">No local scores yet</p>
+                      )
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             
               {/* Buttons */}
               <div className="mt-8 flex flex-col gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.7s both' }}>
