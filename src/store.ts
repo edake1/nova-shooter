@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber';
+export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber' | 'spitter' | 'charger' | 'shielder' | 'phantom';
 
 export type WeaponClass = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden';
 export type WeaponType = 'pulse_pistol' | 'plasma_caster' | 'frag_launcher' | 'shrapnel_blaster' | 'cryo_emitter' | 'void_reaper';
@@ -71,7 +71,10 @@ export const LOOT_CONFIG: Record<LootType, { color: string; label: string; dropW
 };
 
 // Drop chance per enemy type
-const DROP_CHANCE: Record<EnemyType, number> = { swarmer: 0.2, bomber: 0.35, juggernaut: 0.5 };
+const DROP_CHANCE: Record<EnemyType, number> = {
+  swarmer: 0.2, bomber: 0.35, juggernaut: 0.5,
+  spitter: 0.2, charger: 0.25, shielder: 0.3, phantom: 0.4,
+};
 
 function rollLootDrop(enemyType: EnemyType, position: [number, number, number]): LootDrop | null {
   if (Math.random() > DROP_CHANCE[enemyType]) return null;
@@ -86,6 +89,17 @@ function rollLootDrop(enemyType: EnemyType, position: [number, number, number]):
   return { id: nextId(), position: [...position] as [number, number, number], type: 'health', spawnedAt: performance.now() };
 }
 // === END LOOT ===
+
+// === ENEMY PROJECTILES ===
+export interface EnemyProjectile {
+  id: number;
+  position: [number, number, number];
+  velocity: [number, number, number];
+  damage: number;
+  color: string;
+  spawnedAt: number;
+}
+// === END ENEMY PROJECTILES ===
 
 export interface EnemyData {
   id: number;
@@ -119,6 +133,7 @@ interface GameState {
   killsThisLevel: number;
   totalKills: number;
   enemies: EnemyData[];
+  enemyProjectiles: EnemyProjectile[];
   explosions: ExplosionData[];
   isPaused: boolean;
   isGameOver: boolean;
@@ -151,6 +166,9 @@ interface GameState {
   collectLoot: (id: number) => void;
   removeLootDrop: (id: number) => void;
   tickBuffs: () => void;
+  // Enemy projectiles
+  spawnEnemyProjectile: (pos: [number, number, number], vel: [number, number, number], damage: number, color: string) => void;
+  tickEnemyProjectiles: (playerPos: [number, number, number]) => void;
 }
 
 const INITIAL_ENEMIES: EnemyData[] = [
@@ -170,6 +188,7 @@ export const useStore = create<GameState>((set) => ({
   killsThisLevel: 0,
   totalKills: 0,
   enemies: INITIAL_ENEMIES,
+  enemyProjectiles: [],
   explosions: [],
   isPaused: true,
   isGameOver: false,
@@ -214,6 +233,7 @@ export const useStore = create<GameState>((set) => ({
       { id: nextId(), position: [-18, 5, -28] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
     ],
     explosions: [],
+    enemyProjectiles: [],
     lootDrops: [],
     activeBuffs: [],
     shieldHP: 0,
@@ -247,6 +267,7 @@ export const useStore = create<GameState>((set) => ({
       { id: nextId(), position: [-18, 5, -28], type: 'swarmer', health: 1, maxHealth: 1 },
     ],
     explosions: [],
+    enemyProjectiles: [],
     lootDrops: [],
     activeBuffs: [],
     shieldHP: 0,
@@ -327,15 +348,21 @@ export const useStore = create<GameState>((set) => ({
     const maxEnemies = 5 + state.level * 3;
     if (state.enemies.length >= maxEnemies) return state;
     
+    // Build spawn pool based on level — new types phase in gradually
     const types: EnemyType[] = ['swarmer', 'swarmer', 'swarmer'];
-    if (state.level > 2) types.push('bomber', 'bomber');
-    if (state.level > 4) types.push('juggernaut');
-    if (state.level > 6) types.push('juggernaut', 'bomber');
+    if (state.level >= 2) types.push('spitter', 'spitter');
+    if (state.level >= 3) types.push('bomber', 'bomber', 'charger');
+    if (state.level >= 4) types.push('shielder');
+    if (state.level >= 5) types.push('juggernaut');
+    if (state.level >= 6) types.push('phantom', 'charger');
+    if (state.level >= 7) types.push('juggernaut', 'bomber', 'phantom');
     
     const type = types[Math.floor(Math.random() * types.length)];
     const healthMultiplier = 1 + (state.level * 0.2);
-    const baseHealth = type === 'juggernaut' ? 5 : type === 'bomber' ? 2 : 1;
-    const maxHealth = Math.floor(baseHealth * healthMultiplier);
+    const baseHealth: Record<EnemyType, number> = {
+      swarmer: 1, spitter: 2, bomber: 2, charger: 4, shielder: 3, juggernaut: 5, phantom: 3,
+    };
+    const maxHealth = Math.floor((baseHealth[type] ?? 1) * healthMultiplier);
 
     // Spawn 35-50 units from the PLAYER (not origin), clamped to arena bounds
     const cx = playerPos ? playerPos[0] : 0;
@@ -410,5 +437,47 @@ export const useStore = create<GameState>((set) => ({
       activeBuffs: active,
       shieldHP: hadShield && !hasShield ? 0 : state.shieldHP,
     };
+  }),
+
+  // === ENEMY PROJECTILES ===
+  spawnEnemyProjectile: (pos, vel, damage, color) => set((state) => ({
+    enemyProjectiles: [...state.enemyProjectiles, { id: nextId(), position: pos, velocity: vel, damage, color, spawnedAt: performance.now() }],
+  })),
+
+  tickEnemyProjectiles: (playerPos) => set((state) => {
+    const now = performance.now();
+    const HIT_RANGE = 2.0;
+    const MAX_LIFETIME = 3000;
+    const surviving: EnemyProjectile[] = [];
+    let totalDamage = 0;
+    for (const p of state.enemyProjectiles) {
+      if (now - p.spawnedAt > MAX_LIFETIME) continue; // expired
+      const dx = p.position[0] - playerPos[0];
+      const dy = p.position[1] - playerPos[1];
+      const dz = p.position[2] - playerPos[2];
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < HIT_RANGE) {
+        totalDamage += p.damage;
+        continue; // hit player, remove
+      }
+      surviving.push(p);
+    }
+    if (totalDamage > 0) {
+      // Apply damage through shield first
+      let remaining = totalDamage;
+      let newShield = state.shieldHP;
+      if (newShield > 0) {
+        const absorbed = Math.min(newShield, remaining);
+        newShield -= absorbed;
+        remaining -= absorbed;
+      }
+      const newHealth = Math.max(0, state.playerHealth - remaining);
+      window.dispatchEvent(new CustomEvent('nova:playerHit', { detail: { damage: totalDamage } }));
+      if (newHealth <= 0) {
+        return { enemyProjectiles: surviving, playerHealth: 0, shieldHP: newShield, gamePhase: 'gameover' as GamePhase, isPaused: true, isGameOver: true };
+      }
+      return { enemyProjectiles: surviving, playerHealth: newHealth, shieldHP: newShield };
+    }
+    return { enemyProjectiles: surviving };
   }),
 }));

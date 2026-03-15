@@ -35,6 +35,7 @@ import { Weapon } from "@/components/Weapon";
 import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { LootDrops } from "@/components/LootDrops";
+import { EnemyProjectiles } from "@/components/EnemyProjectiles";
 import { useStore, LOOT_CONFIG } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 
@@ -342,6 +343,7 @@ export default function Game() {
             <Enemies />
             <GPUParticles />
             <LootDrops />
+            <EnemyProjectiles />
 
             <RigidBody type="fixed" position={[0, 4, -15]} colliders="cuboid">
               <mesh castShadow receiveShadow><boxGeometry args={[4, 10, 4]} /><meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} /></mesh>

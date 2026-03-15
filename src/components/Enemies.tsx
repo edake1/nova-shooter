@@ -5,6 +5,75 @@ import type { RapierRigidBody } from "@react-three/rapier";
 import { useStore, EnemyData } from "@/store";
 import * as THREE from "three";
 
+// === ENEMY TRAIT CONFIG ===
+interface EnemyTraits {
+  speed: number;
+  baseScale: number;
+  rotSpeed: number;
+  contactDamage: number;
+  contactRange: number;
+  emissive: string;
+  core: string;
+  ranged: boolean;
+  fireInterval: number; // ms between shots (0 = melee only)
+  projectileSpeed: number;
+  projectileDamage: number;
+  preferredRange: number; // distance they try to maintain from player
+  wireframe: boolean;
+}
+
+const ENEMY_TRAITS: Record<string, EnemyTraits> = {
+  swarmer: {
+    speed: 3.5, baseScale: 0.5, rotSpeed: 0.02,
+    contactDamage: 5, contactRange: 1.5,
+    emissive: '#ff0044', core: '#ff0040',
+    ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
+    preferredRange: 0, wireframe: true,
+  },
+  spitter: {
+    speed: 2.5, baseScale: 0.6, rotSpeed: 0.01,
+    contactDamage: 3, contactRange: 1.5,
+    emissive: '#aa00ff', core: '#cc44ff',
+    ranged: true, fireInterval: 2000, projectileSpeed: 18, projectileDamage: 10,
+    preferredRange: 18, wireframe: false,
+  },
+  charger: {
+    speed: 2.0, baseScale: 0.7, rotSpeed: 0.03,
+    contactDamage: 15, contactRange: 2.0,
+    emissive: '#ff6600', core: '#ff8800',
+    ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
+    preferredRange: 0, wireframe: true,
+  },
+  shielder: {
+    speed: 2.0, baseScale: 0.8, rotSpeed: 0.008,
+    contactDamage: 5, contactRange: 2.0,
+    emissive: '#0066ff', core: '#00aaff',
+    ranged: true, fireInterval: 4000, projectileSpeed: 14, projectileDamage: 15,
+    preferredRange: 14, wireframe: false,
+  },
+  bomber: {
+    speed: 4.0, baseScale: 0.9, rotSpeed: 0.05,
+    contactDamage: 15, contactRange: 2.0,
+    emissive: '#ffaa00', core: '#ff4400',
+    ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
+    preferredRange: 0, wireframe: false,
+  },
+  juggernaut: {
+    speed: 2.5, baseScale: 1.8, rotSpeed: 0.005,
+    contactDamage: 10, contactRange: 3.0,
+    emissive: '#0088ff', core: '#00ccff',
+    ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
+    preferredRange: 0, wireframe: true,
+  },
+  phantom: {
+    speed: 5.0, baseScale: 0.65, rotSpeed: 0.04,
+    contactDamage: 12, contactRange: 1.8,
+    emissive: '#00ff88', core: '#00ffaa',
+    ranged: true, fireInterval: 3000, projectileSpeed: 22, projectileDamage: 20,
+    preferredRange: 12, wireframe: true,
+  },
+};
+
 export function Enemies() {
   const enemies = useStore((state) => state.enemies);
   const spawnEnemies = useStore((state) => state.spawnEnemies);
@@ -41,6 +110,12 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const lastThreatAtRef = useRef(0);
   const lastDamageAtRef = useRef(0);
+  const lastFireAtRef = useRef(0);
+  const chargeStateRef = useRef<'idle' | 'winding' | 'charging'>('idle');
+  const chargeTimerRef = useRef(0);
+  const teleportTimerRef = useRef(performance.now() + 3000 + Math.random() * 2000);
+  
+  const traits = ENEMY_TRAITS[enemy.type] ?? ENEMY_TRAITS.swarmer;
   
   // Pre-allocate vectors ONCE — reused every frame (zero GC pressure)
   const vecs = useMemo(() => ({
@@ -52,28 +127,15 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
     up: new THREE.Vector3(0, 1, 0),
   }), []);
   
-  // Contact damage per enemy type (reduced so player has breathing room)
-  const contactDamage = enemy.type === 'juggernaut' ? 10 : enemy.type === 'bomber' ? 15 : 5;
-  const contactRange = enemy.type === 'juggernaut' ? 3.0 : enemy.type === 'bomber' ? 2.0 : 1.5;
-  
-  // Set distinct traits based on enemy type (slower speeds for fairer gameplay)
-  const [traits] = useState(() => {
-    switch (enemy.type) {
-      case 'juggernaut': return { speed: 2.5, baseScale: 1.8, rotSpeed: 0.005 };
-      case 'bomber': return { speed: 4.0, baseScale: 0.9, rotSpeed: 0.05 };
-      case 'swarmer': default: return { speed: 3.5 + Math.random() * 1.5, baseScale: 0.5, rotSpeed: 0.02 };
-    }
-  });
-  
   // Visual reactions to damage
   const healthRatio = enemy.health / enemy.maxHealth;
   const currentScale = enemy.type === 'juggernaut' ? traits.baseScale * (0.5 + 0.5 * healthRatio) : traits.baseScale;
   
-  const emissiveColor = enemy.type === 'swarmer' ? '#ff0044' : enemy.type === 'juggernaut' ? '#0088ff' : '#ffaa00';
-  const coreColor = enemy.type === 'swarmer' ? '#ff0040' : enemy.type === 'juggernaut' ? '#00ccff' : '#ff4400';
   const intensityMultiplier = enemy.type === 'juggernaut' ? healthRatio : 1;
   const wireframeIntensity = 4 * intensityMultiplier;
   const coreIntensity = 8 * intensityMultiplier;
+  // Phantom flickers when about to teleport
+  const phantomOpacity = enemy.type === 'phantom' ? (0.4 + 0.6 * Math.abs(Math.sin(Date.now() * 0.005))) : 1;
 
   useFrame((state) => {
     if (useStore.getState().gamePhase !== 'playing') return;
@@ -83,7 +145,6 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       meshRef.current.rotation.x += traits.rotSpeed;
       meshRef.current.rotation.y += traits.rotSpeed * 2;
 
-      // Swarm AI: Move towards the player's camera position dynamically
       const playerPos = state.camera.position;
       const t = rigidBodyRef.current.translation();
       vecs.currentPos.set(t.x, t.y, t.z);
@@ -91,28 +152,24 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       vecs.dir.subVectors(playerPos, vecs.currentPos);
       const distanceToPlayer = vecs.dir.length();
 
+      // --- Threat indicator ---
       if (distanceToPlayer < 13 && performance.now() - lastThreatAtRef.current > 700) {
         vecs.toEnemy.subVectors(vecs.currentPos, playerPos).normalize();
         state.camera.getWorldDirection(vecs.cameraForward);
         vecs.right.crossVectors(vecs.cameraForward, vecs.up).normalize();
-
         const side = vecs.right.dot(vecs.toEnemy);
         const front = vecs.cameraForward.dot(vecs.toEnemy);
         const intensity = Math.min(1, 1 - distanceToPlayer / 13 + 0.2);
-
-        window.dispatchEvent(new CustomEvent("nova:incoming", {
-          detail: { side, front, intensity }
-        }));
-
+        window.dispatchEvent(new CustomEvent("nova:incoming", { detail: { side, front, intensity } }));
         lastThreatAtRef.current = performance.now();
       }
 
-      // Contact damage — hurt player when in melee range (throttled to 1 hit/sec)
+      // --- Contact damage ---
       const now = performance.now();
-      if (distanceToPlayer < contactRange && now - lastDamageAtRef.current > 2000) {
+      if (distanceToPlayer < traits.contactRange && now - lastDamageAtRef.current > 2000) {
         lastDamageAtRef.current = now;
-        useStore.getState().damagePlayer(contactDamage);
-        window.dispatchEvent(new CustomEvent("nova:playerHit", { detail: { damage: contactDamage } }));
+        useStore.getState().damagePlayer(traits.contactDamage);
+        window.dispatchEvent(new CustomEvent("nova:playerHit", { detail: { damage: traits.contactDamage } }));
       }
         
       if (vecs.dir.lengthSq() > 0.001) {
@@ -120,52 +177,158 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
       } else {
         vecs.dir.set(0, 0, 1);
       }
-      
-      // Bombers stop at a certain distance to "charge"
-      if (enemy.type === 'bomber' && distanceToPlayer < 8) {
-         vecs.dir.set(0, 0, 0); 
-         meshRef.current.position.set(
-            (Math.random() - 0.5) * 0.1,
-            (Math.random() - 0.5) * 0.1,
-            (Math.random() - 0.5) * 0.1
-         );
+
+      // === TYPE-SPECIFIC AI ===
+      let moveDir = vecs.dir.clone();
+      moveDir.y = 0;
+      let speed = traits.speed;
+
+      if (enemy.type === 'charger') {
+        // CHARGER: wind up, then burst toward player
+        if (chargeStateRef.current === 'idle' && distanceToPlayer < 25) {
+          chargeStateRef.current = 'winding';
+          chargeTimerRef.current = now;
+        }
+        if (chargeStateRef.current === 'winding') {
+          speed = 0; // pause to wind up
+          meshRef.current.position.set(
+            (Math.random() - 0.5) * 0.15,
+            (Math.random() - 0.5) * 0.15,
+            (Math.random() - 0.5) * 0.15
+          );
+          if (now - chargeTimerRef.current > 1200) {
+            chargeStateRef.current = 'charging';
+            chargeTimerRef.current = now;
+          }
+        } else if (chargeStateRef.current === 'charging') {
+          speed = traits.speed * 3; // burst forward
+          if (now - chargeTimerRef.current > 800 || distanceToPlayer < 2) {
+            chargeStateRef.current = 'idle';
+          }
+        } else {
+          speed = traits.speed * 0.5; // slow approach
+        }
+      } else if (enemy.type === 'bomber' && distanceToPlayer < 8) {
+        // BOMBER: stop and vibrate when close
+        moveDir.set(0, 0, 0);
+        meshRef.current.position.set(
+          (Math.random() - 0.5) * 0.1,
+          (Math.random() - 0.5) * 0.1,
+          (Math.random() - 0.5) * 0.1
+        );
+      } else if (enemy.type === 'phantom') {
+        // PHANTOM: teleport every ~3s, appear behind player
+        if (now > teleportTimerRef.current) {
+          teleportTimerRef.current = now + 3000 + Math.random() * 2000;
+          // Teleport behind the player at 8-12 unit distance
+          const behind = new THREE.Vector3();
+          state.camera.getWorldDirection(behind);
+          behind.multiplyScalar(-1).normalize();
+          const offset = 8 + Math.random() * 4;
+          const nx = playerPos.x + behind.x * offset + (Math.random() - 0.5) * 4;
+          const nz = playerPos.z + behind.z * offset + (Math.random() - 0.5) * 4;
+          rigidBodyRef.current.setTranslation({ x: nx, y: playerPos.y + 1, z: nz }, true);
+          rigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+          // Fire on teleport
+          if (traits.ranged) {
+            const fireDir = new THREE.Vector3().subVectors(playerPos, new THREE.Vector3(nx, playerPos.y + 1, nz)).normalize();
+            useStore.getState().spawnEnemyProjectile(
+              [nx, playerPos.y + 1, nz],
+              [fireDir.x * traits.projectileSpeed, fireDir.y * traits.projectileSpeed, fireDir.z * traits.projectileSpeed],
+              traits.projectileDamage, traits.emissive
+            );
+            lastFireAtRef.current = now;
+          }
+          return;
+        }
+      } else if (traits.ranged && traits.preferredRange > 0) {
+        // RANGED AI: maintain preferred distance
+        if (distanceToPlayer < traits.preferredRange * 0.6) {
+          moveDir.multiplyScalar(-1); // back away
+        } else if (distanceToPlayer > traits.preferredRange * 1.3) {
+          // approach (moveDir is already toward player)
+        } else {
+          // strafe — orbit the player
+          const strafe = new THREE.Vector3(-moveDir.z, 0, moveDir.x);
+          moveDir.copy(strafe);
+          speed = traits.speed * 0.7;
+        }
       } else {
-         meshRef.current.position.set(0, 0, 0);
+        meshRef.current.position.set(0, 0, 0);
       }
-      
-      vecs.dir.y = 0;
+
+      // --- Ranged firing ---
+      if (traits.ranged && enemy.type !== 'phantom' && traits.fireInterval > 0 && now - lastFireAtRef.current > traits.fireInterval && distanceToPlayer < 35) {
+        lastFireAtRef.current = now;
+        const fireDir = new THREE.Vector3().subVectors(playerPos, vecs.currentPos).normalize();
+        // Slight inaccuracy so player can dodge
+        fireDir.x += (Math.random() - 0.5) * 0.1;
+        fireDir.z += (Math.random() - 0.5) * 0.1;
+        fireDir.normalize();
+        useStore.getState().spawnEnemyProjectile(
+          [t.x, t.y, t.z],
+          [fireDir.x * traits.projectileSpeed, fireDir.y * traits.projectileSpeed, fireDir.z * traits.projectileSpeed],
+          traits.projectileDamage, traits.emissive
+        );
+      }
 
       rigidBodyRef.current.setLinvel({
-        x: vecs.dir.x * traits.speed,
+        x: moveDir.x * speed,
         y: t.y < 3 * currentScale ? traits.speed : -0.5,
-        z: vecs.dir.z * traits.speed
+        z: moveDir.z * speed
       }, true);
     }
   });
+
+  // Geometry based on type
+  const geometry = useMemo(() => {
+    switch (enemy.type) {
+      case 'juggernaut': return <octahedronGeometry args={[1.5, 0]} />;
+      case 'bomber': return <dodecahedronGeometry args={[1.5, 0]} />;
+      case 'spitter': return <coneGeometry args={[1.0, 2.5, 6]} />;
+      case 'charger': return <coneGeometry args={[1.2, 2.0, 4]} />;
+      case 'shielder': return <sphereGeometry args={[1.3, 8, 8]} />;
+      case 'phantom': return <tetrahedronGeometry args={[1.4, 0]} />;
+      default: return <icosahedronGeometry args={[1.5, 0]} />;
+    }
+  }, [enemy.type]);
 
   return (
     <RigidBody ref={rigidBodyRef} position={enemy.position} type="dynamic" colliders="ball" mass={enemy.type === 'juggernaut' ? 10 : 1} linearDamping={2}>
       <group scale={[currentScale, currentScale, currentScale]}>
         <mesh ref={meshRef} userData={{ isEnemy: true, id: enemy.id }} castShadow receiveShadow>
-          {enemy.type === 'juggernaut' ? <octahedronGeometry args={[1.5, 0]} /> :
-           enemy.type === 'bomber' ? <dodecahedronGeometry args={[1.5, 0]} /> :
-           <icosahedronGeometry args={[1.5, 0]} />}
-          
+          {geometry}
           <meshStandardMaterial 
             color="#111" 
-            emissive={emissiveColor} 
+            emissive={traits.emissive} 
             emissiveIntensity={wireframeIntensity} 
             roughness={0.2} 
             metalness={1.0} 
-            wireframe={enemy.type !== 'bomber'}
+            wireframe={traits.wireframe}
+            transparent={enemy.type === 'phantom'}
+            opacity={phantomOpacity}
           />
         </mesh>
         
         {/* Inner glowing core */}
         <mesh>
            <sphereGeometry args={[0.8, 8, 8]} />
-           <meshStandardMaterial color="#000" emissive={coreColor} emissiveIntensity={coreIntensity} />
+           <meshStandardMaterial 
+             color="#000" 
+             emissive={traits.core} 
+             emissiveIntensity={coreIntensity}
+             transparent={enemy.type === 'phantom'}
+             opacity={enemy.type === 'phantom' ? phantomOpacity * 0.8 : 1}
+           />
         </mesh>
+
+        {/* Shielder: outer shield bubble */}
+        {enemy.type === 'shielder' && (
+          <mesh>
+            <sphereGeometry args={[2.0, 16, 16]} />
+            <meshStandardMaterial color="#003366" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.15} wireframe />
+          </mesh>
+        )}
       </group>
     </RigidBody>
   );
