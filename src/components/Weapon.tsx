@@ -145,6 +145,11 @@ export function Weapon() {
   const flashTimerRef = useRef(0);
   const lastFireRef = useRef(0);
   
+  // Charged shots state
+  const chargeStartRef = useRef(0); // timestamp when mouse went down (0 = not charging)
+  const chargeWeaponRef = useRef<WeaponType | null>(null);
+  const CHARGE_DURATION = 2.0; // seconds to full charge
+  
   // Reuse a single raycaster and vector — zero allocations per shot
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const screenCenter = useMemo(() => new THREE.Vector2(0, 0), []);
@@ -231,11 +236,8 @@ export function Weapon() {
   }, [raycaster, scene]);
 
   useEffect(() => {
-    const handlePointerDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      if (useStore.getState().isPaused) return;
-      if (!document.pointerLockElement) return;
-
+    // ===== FIRE FUNCTION (called on release with charge multiplier) =====
+    const fireWeapon = (chargeMultiplier: number) => {
       const now = performance.now() / 1000;
       const state = useStore.getState();
       const weapon = state.equippedWeapon;
@@ -250,7 +252,7 @@ export function Weapon() {
 
       const damageBuff = state.activeBuffs.find(b => b.type === 'damage_boost');
       const damageMultiplier = damageBuff ? damageBuff.value : 1;
-      const damage = Math.round(getWeaponDamage(weapon, weaponLevel) * damageMultiplier);
+      const damage = Math.round(getWeaponDamage(weapon, weaponLevel) * damageMultiplier * chargeMultiplier);
 
       recoilRef.current = 1;
       flashTimerRef.current = 0.05;
@@ -632,12 +634,50 @@ export function Weapon() {
       }
     };
 
+    // ===== CHARGE SYSTEM: pointerdown starts charge, pointerup fires =====
+    const handlePointerDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (useStore.getState().isPaused) return;
+      if (!document.pointerLockElement) return;
+      chargeStartRef.current = performance.now();
+      chargeWeaponRef.current = useStore.getState().equippedWeapon;
+    };
+
+    const handlePointerUp = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (!chargeStartRef.current) return;
+      const heldMs = performance.now() - chargeStartRef.current;
+      chargeStartRef.current = 0;
+      chargeWeaponRef.current = null;
+      // Dispatch charge cleared to HUD
+      window.dispatchEvent(new CustomEvent('nova:charge', { detail: { charge: 0 } }));
+      
+      if (useStore.getState().isPaused) return;
+      if (!document.pointerLockElement) return;
+
+      // Charge multiplier: tap (<150ms) = 1x, full hold (2s) = 3x
+      const chargePercent = Math.min(1, Math.max(0, heldMs / 1000 / CHARGE_DURATION));
+      const chargeMultiplier = 1 + chargePercent * 2; // 1x to 3x
+      fireWeapon(chargeMultiplier);
+    };
+
     window.addEventListener("pointerdown", handlePointerDown);
-    return () => window.removeEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
   }, [camera, scene, raycaster, screenCenter, worldPos, spreadDir, aoePos, enemyPos, hitEnemy, raycastEnemy]);
 
   useFrame((_state, delta) => {
     if (!groupRef.current) return;
+
+    // Dispatch charge progress to HUD
+    if (chargeStartRef.current > 0 && document.pointerLockElement && !useStore.getState().isPaused) {
+      const heldMs = performance.now() - chargeStartRef.current;
+      const charge = Math.min(1, heldMs / 1000 / CHARGE_DURATION);
+      window.dispatchEvent(new CustomEvent('nova:charge', { detail: { charge } }));
+    }
 
     // Attach weapon to camera
     groupRef.current.position.copy(camera.position);

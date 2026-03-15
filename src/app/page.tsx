@@ -224,6 +224,7 @@ export default function Game() {
   const [hitMarker, setHitMarker] = useState<"hit" | "kill" | null>(null);
   const [incoming, setIncoming] = useState({ left: 0, right: 0, front: 0, back: 0 });
   const [damageFlash, setDamageFlash] = useState(0);
+  const [chargeLevel, setChargeLevel] = useState(0);
   const [levelUpShow, setLevelUpShow] = useState<number | null>(null);
   const [comboDisplay, setComboDisplay] = useState<{ count: number; tier: string; multiplier: number } | null>(null);
   const [saveExists, setSaveExists] = useState(false);
@@ -313,6 +314,16 @@ export default function Game() {
     };
     window.addEventListener("nova:playerHit", handlePlayerHit);
     return () => window.removeEventListener("nova:playerHit", handlePlayerHit);
+  }, []);
+
+  // Charge bar
+  useEffect(() => {
+    const handleCharge = (e: Event) => {
+      const charge = (e as CustomEvent).detail.charge as number;
+      setChargeLevel(charge);
+    };
+    window.addEventListener('nova:charge', handleCharge as EventListener);
+    return () => window.removeEventListener('nova:charge', handleCharge as EventListener);
   }, []);
 
   // Combo display
@@ -594,6 +605,33 @@ export default function Game() {
           >
             <WeaponReticle weapon={equippedWeapon} bloom={reticleBloom} pulse={reticlePulse} />
             <div className="combat-reticle-label" style={{ color: `${reticleColor}cc` }}>{reticleLabel}</div>
+            {/* Charge bar below reticle */}
+            {chargeLevel > 0.05 && (
+              <div style={{
+                position: 'absolute',
+                top: '130%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '60px',
+                height: '4px',
+                background: 'rgba(0,0,0,0.5)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+                border: `1px solid ${chargeLevel >= 1 ? '#facc15' : 'rgba(255,255,255,0.2)'}`,
+              }}>
+                <div style={{
+                  width: `${chargeLevel * 100}%`,
+                  height: '100%',
+                  background: chargeLevel >= 1
+                    ? 'linear-gradient(90deg, #facc15, #fde047)'
+                    : chargeLevel > 0.5
+                    ? 'linear-gradient(90deg, #f97316, #facc15)'
+                    : `linear-gradient(90deg, ${reticleColor}, ${reticleColor})`,
+                  transition: 'width 0.05s linear',
+                  boxShadow: chargeLevel >= 1 ? '0 0 8px #facc15' : 'none',
+                }} />
+              </div>
+            )}
             {hitMarker && (
               <div className={`hit-marker ${hitMarker === "kill" ? "hit-marker-kill" : ""}`}><span /><span /></div>
             )}
