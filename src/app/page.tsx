@@ -201,36 +201,40 @@ export default function Game() {
   const [levelUpShow, setLevelUpShow] = useState<number | null>(null);
   const [comboDisplay, setComboDisplay] = useState<{ count: number; tier: string; multiplier: number } | null>(null);
   const [saveExists, setSaveExists] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
 
-  // Check for saved game on client only (avoids hydration mismatch)
+  // Client-only flag — avoids hydration mismatch for random particles & localStorage
+  useEffect(() => {
+    setMounted(true);
+    setSaveExists(hasSave());
+  }, [hasSave]);
+
   useEffect(() => {
     setSaveExists(hasSave());
   }, [hasSave, gamePhase]);
 
-  // Pre-generate particle configs to avoid Math.random() hydration mismatch
-  const homeParticles = useMemo(() => Array.from({ length: 30 }, (_, i) => {
-    const seed = (i + 1) * 7919; // deterministic per index
-    const r = (n: number) => ((Math.sin(seed * n) * 43758.5453) % 1 + 1) % 1;
-    return {
-      w: 1 + r(1) * 2.5, left: `${r(2) * 100}%`,
-      bg: r(3) > 0.5 ? '#22d3ee' : '#a78bfa',
-      opacity: 0.3 + r(4) * 0.4,
-      dur: 6 + r(5) * 10, delay: r(6) * 6,
-    };
-  }), []);
+  // Generate particles only on client (Math.random is fine post-hydration)
+  const homeParticles = useMemo(() => {
+    if (!mounted) return [];
+    return Array.from({ length: 30 }, (_, i) => ({
+      w: 1 + Math.random() * 2.5, left: `${Math.random() * 100}%`,
+      bg: Math.random() > 0.5 ? '#22d3ee' : '#a78bfa',
+      opacity: 0.3 + Math.random() * 0.4,
+      dur: 6 + Math.random() * 10, delay: Math.random() * 6,
+    }));
+  }, [mounted]);
 
-  const gameoverParticles = useMemo(() => Array.from({ length: 20 }, (_, i) => {
-    const seed = (i + 1) * 6271;
-    const r = (n: number) => ((Math.sin(seed * n) * 43758.5453) % 1 + 1) % 1;
-    return {
-      w: 2 + r(1) * 3, left: `${10 + r(2) * 80}%`,
-      bg: `hsl(${r(3) * 40}, 100%, ${50 + r(4) * 30}%)`,
-      dur: 4 + r(5) * 6, delay: r(6) * 3,
-    };
-  }), []);
+  const gameoverParticles = useMemo(() => {
+    if (!mounted) return [];
+    return Array.from({ length: 20 }, (_, i) => ({
+      w: 2 + Math.random() * 3, left: `${10 + Math.random() * 80}%`,
+      bg: `hsl(${Math.random() * 40}, 100%, ${50 + Math.random() * 30}%)`,
+      dur: 4 + Math.random() * 6, delay: Math.random() * 3,
+    }));
+  }, [mounted]);
 
   // Player damage flash
   useEffect(() => {
@@ -780,7 +784,7 @@ export default function Game() {
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/15 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   <div className="absolute bottom-0 left-[10%] right-[10%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.6), transparent)', animation: 'home-border-sweep 3s linear infinite', backgroundSize: '200% 100%' }} />
                 </button>
-                {saveExists && (
+                {mounted && saveExists && (
                   <button onClick={() => { loadGame(); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
                     className="group relative px-12 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.3em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
                     style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.08))', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 30px rgba(16,185,129,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
