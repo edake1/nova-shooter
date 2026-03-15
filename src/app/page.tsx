@@ -42,12 +42,24 @@ import { PauseMenu } from "@/components/PauseMenu";
 import { WeaponWheel } from "@/components/WeaponWheel";
 
 const RETICLE_PROFILES = {
-  pulse_pistol:     { label: "KINETIC",   color: "#e2e8f0", size: 86 },
-  plasma_caster:    { label: "PLASMA",    color: "#22d3ee", size: 90 },
-  frag_launcher:    { label: "AOE LOCK",  color: "#f97316", size: 110 },
-  shrapnel_blaster: { label: "SPREAD",    color: "#f59e0b", size: 100 },
-  cryo_emitter:     { label: "CRYO",      color: "#60a5fa", size: 94 },
-  void_reaper:      { label: "VOID",      color: "#a855f7", size: 96 },
+  pulse_pistol:     { label: "KINETIC",      color: "#e2e8f0", size: 86 },
+  plasma_caster:    { label: "PLASMA",       color: "#22d3ee", size: 90 },
+  frag_launcher:    { label: "AOE LOCK",     color: "#f97316", size: 110 },
+  shrapnel_blaster: { label: "SPREAD",       color: "#f59e0b", size: 100 },
+  cryo_emitter:     { label: "CRYO",         color: "#60a5fa", size: 94 },
+  void_reaper:      { label: "VOID",         color: "#a855f7", size: 96 },
+  lightning_coil:   { label: "ARC",          color: "#facc15", size: 92 },
+  blade_wave:       { label: "FORCE",        color: "#fb7185", size: 108 },
+  railgun:          { label: "RAIL",         color: "#34d399", size: 80 },
+  gravity_well:     { label: "SINGULARITY",  color: "#a78bfa", size: 114 },
+  swarm_missiles:   { label: "SWARM",        color: "#f87171", size: 98 },
+  beam_laser:       { label: "BEAM",         color: "#a3e635", size: 78 },
+  ricochet_cannon:  { label: "RICOCHET",     color: "#2dd4bf", size: 88 },
+  sonic_boom:       { label: "SONIC",        color: "#38bdf8", size: 106 },
+  nano_swarm:       { label: "NANO",         color: "#4ade80", size: 112 },
+  photon_burst:     { label: "NOVA",         color: "#facc15", size: 116 },
+  plasma_whip:      { label: "WHIP",         color: "#f472b6", size: 104 },
+  warp_lance:       { label: "WARP",         color: "#818cf8", size: 76 },
 } as const;
 
 function WeaponReticle({ weapon, bloom, pulse }: { weapon: string; bloom: number; pulse: boolean }) {
@@ -176,7 +188,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -186,6 +198,8 @@ export default function Game() {
   const [hitMarker, setHitMarker] = useState<"hit" | "kill" | null>(null);
   const [incoming, setIncoming] = useState({ left: 0, right: 0, front: 0, back: 0 });
   const [damageFlash, setDamageFlash] = useState(0);
+  const [levelUpShow, setLevelUpShow] = useState<number | null>(null);
+  const [comboDisplay, setComboDisplay] = useState<{ count: number; tier: string; multiplier: number } | null>(null);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
@@ -197,6 +211,38 @@ export default function Game() {
     };
     window.addEventListener("nova:playerHit", handlePlayerHit);
     return () => window.removeEventListener("nova:playerHit", handlePlayerHit);
+  }, []);
+
+  // Combo display
+  useEffect(() => {
+    const handleCombo = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setComboDisplay({ count: detail.count, tier: detail.tier, multiplier: detail.multiplier });
+    };
+    window.addEventListener("nova:combo", handleCombo as EventListener);
+    return () => window.removeEventListener("nova:combo", handleCombo as EventListener);
+  }, []);
+
+  // Tick combo decay
+  useEffect(() => {
+    if (gamePhase !== 'playing') return;
+    const interval = window.setInterval(() => {
+      tickCombo();
+      const c = useStore.getState().combo;
+      if (c.count < 3) setComboDisplay(null);
+    }, 200);
+    return () => window.clearInterval(interval);
+  }, [gamePhase, tickCombo]);
+
+  // Level-up announcement
+  useEffect(() => {
+    const handleLevelUp = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setLevelUpShow(detail.level);
+      setTimeout(() => setLevelUpShow(null), 2500);
+    };
+    window.addEventListener("nova:levelup", handleLevelUp as EventListener);
+    return () => window.removeEventListener("nova:levelup", handleLevelUp as EventListener);
   }, []);
 
   // Decay damage flash
@@ -494,6 +540,50 @@ export default function Game() {
       {/* ===== WEAPON WHEEL ===== */}
       {gamePhase === 'playing' && <WeaponWheel />}
 
+      {/* ===== COMBO HUD ===== */}
+      {comboDisplay && gamePhase === 'playing' && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[115] pointer-events-none text-center"
+          style={{ animation: 'combo-pop 0.3s ease-out' }} key={comboDisplay.count}>
+          <div className="font-orbitron text-5xl font-black tracking-tighter"
+            style={{
+              color: comboDisplay.multiplier >= 4 ? '#facc15' : comboDisplay.multiplier >= 2.5 ? '#f43f5e' : comboDisplay.multiplier >= 2 ? '#f97316' : '#22d3ee',
+              textShadow: `0 0 30px currentColor, 0 0 60px currentColor`,
+              animation: comboDisplay.multiplier >= 3 ? 'combo-shake 0.1s linear infinite' : 'none',
+            }}>
+            {comboDisplay.count}x
+          </div>
+          <div className="font-orbitron text-lg font-bold tracking-[0.3em] uppercase mt-1"
+            style={{
+              color: comboDisplay.multiplier >= 4 ? '#fde047' : comboDisplay.multiplier >= 2.5 ? '#fda4af' : comboDisplay.multiplier >= 2 ? '#fdba74' : '#67e8f9',
+              textShadow: '0 0 10px currentColor',
+            }}>
+            {comboDisplay.tier}
+          </div>
+          <div className="font-mono text-xs text-white/60 mt-0.5">{comboDisplay.multiplier}x SCORE</div>
+        </div>
+      )}
+
+      {/* ===== LEVEL UP OVERLAY ===== */}
+      {levelUpShow !== null && (
+        <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0" style={{ animation: 'levelup-flash 0.6s ease-out forwards', background: 'radial-gradient(circle, rgba(34,211,238,0.4), transparent 70%)' }} />
+          <div className="absolute w-[600px] h-[600px] rounded-full border-2 border-cyan-400/60"
+            style={{ animation: 'levelup-ring 2s ease-out forwards' }} />
+          <div className="absolute w-[400px] h-[400px] rounded-full border border-cyan-300/30"
+            style={{ animation: 'levelup-ring 2s ease-out 0.2s forwards' }} />
+          <div className="text-center" style={{ animation: 'levelup-text 2.5s ease-out forwards' }}>
+            <div className="font-orbitron text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-cyan-400"
+              style={{ textShadow: '0 0 40px rgba(34,211,238,0.8), 0 0 80px rgba(34,211,238,0.4)', WebkitTextStroke: '1px rgba(34,211,238,0.3)' }}>
+              LEVEL {levelUpShow}
+            </div>
+            <div className="font-orbitron text-xl font-bold tracking-[0.5em] text-cyan-300 mt-2"
+              style={{ textShadow: '0 0 20px rgba(34,211,238,0.6)' }}>
+              THREAT ESCALATION
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== DAMAGE FLASH ===== */}
       {damageFlash > 0 && (
         <div className="fixed inset-0 pointer-events-none z-[90]"
@@ -505,83 +595,163 @@ export default function Game() {
 
       {/* ===== HOME SCREEN ===== */}
       {gamePhase === 'menu' && (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center cursor-default"
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center cursor-default select-none"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}>
-          {/* Animated background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-950 to-black" />
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.15) 2px, rgba(0,255,255,0.15) 4px)', animation: 'scan 8s linear infinite' }} />
-          {/* Grid floor fade */}
-          <div className="absolute bottom-0 left-0 right-0 h-1/3 opacity-20" style={{
-            backgroundImage: 'linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,255,0.3) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-            maskImage: 'linear-gradient(to bottom, transparent, black)',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black)',
+
+          {/* Deep space background */}
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at 50% 30%, rgba(0,30,60,1) 0%, rgba(2,4,10,1) 60%, #000 100%)',
           }} />
-          
-          <div className="relative z-10 flex flex-col items-center gap-5 text-center px-4">
-            {/* Subtitle above */}
-            <p className="text-cyan-500/50 font-mono text-[10px] tracking-[0.8em] uppercase">SYSTEM v2.1 // COMBAT SIMULATION</p>
-            
-            {/* Title */}
-            <div className="relative px-4 py-2">
-              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-8xl md:text-9xl tracking-tight italic leading-tight"
-                style={{ filter: 'drop-shadow(0 0 40px rgba(0,255,255,0.3))' }}>
+
+          {/* Animated nebula blobs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute w-[600px] h-[600px] rounded-full top-[-10%] left-[-5%] opacity-[0.07]"
+              style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.6), transparent 70%)', animation: 'home-hex-pulse 8s ease-in-out infinite' }} />
+            <div className="absolute w-[500px] h-[500px] rounded-full bottom-[-5%] right-[-5%] opacity-[0.05]"
+              style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.6), transparent 70%)', animation: 'home-hex-pulse 10s ease-in-out 2s infinite' }} />
+            <div className="absolute w-[400px] h-[400px] rounded-full top-[40%] left-[60%] opacity-[0.04]"
+              style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.5), transparent 70%)', animation: 'home-hex-pulse 12s ease-in-out 4s infinite' }} />
+          </div>
+
+          {/* Scanlines */}
+          <div className="absolute inset-0 opacity-[0.025] pointer-events-none" style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.15) 2px, rgba(0,255,255,0.15) 4px)',
+            animation: 'scan 8s linear infinite',
+          }} />
+
+          {/* Hex grid pattern */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpath d='M30 0L60 15v22L30 52 0 37V15z' fill='none' stroke='%2322d3ee' stroke-width='0.5'/%3E%3C/svg%3E")`,
+            backgroundSize: '60px 52px',
+            animation: 'home-hex-pulse 6s ease-in-out infinite',
+          }} />
+
+          {/* Rising particles */}
+          {Array.from({ length: 30 }, (_, i) => (
+            <div key={i} className="absolute rounded-full pointer-events-none" style={{
+              width: 1 + Math.random() * 2.5,
+              height: 1 + Math.random() * 2.5,
+              left: `${Math.random() * 100}%`,
+              bottom: '-2%',
+              background: Math.random() > 0.5 ? '#22d3ee' : '#a78bfa',
+              opacity: 0.3 + Math.random() * 0.4,
+              animation: `home-particle-rise ${6 + Math.random() * 10}s linear ${Math.random() * 6}s infinite`,
+            }} />
+          ))}
+
+          {/* Grid floor with perspective */}
+          <div className="absolute bottom-0 left-0 right-0 h-[40%]" style={{
+            backgroundImage: 'linear-gradient(rgba(0,255,255,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,255,0.25) 1px, transparent 1px)',
+            backgroundSize: '50px 50px',
+            maskImage: 'linear-gradient(to bottom, transparent 10%, rgba(0,0,0,0.6) 50%, black 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent 10%, rgba(0,0,0,0.6) 50%, black 100%)',
+            transform: 'perspective(400px) rotateX(45deg)',
+            transformOrigin: 'bottom center',
+            opacity: 0.15,
+          }} />
+
+          {/* Horizontal accent lines */}
+          <div className="absolute top-[18%] left-0 right-0 h-px opacity-20 pointer-events-none" style={{
+            background: 'linear-gradient(90deg, transparent 5%, rgba(34,211,238,0.4) 30%, rgba(34,211,238,0.6) 50%, rgba(34,211,238,0.4) 70%, transparent 95%)',
+          }} />
+          <div className="absolute bottom-[22%] left-0 right-0 h-px opacity-15 pointer-events-none" style={{
+            background: 'linear-gradient(90deg, transparent 10%, rgba(168,85,247,0.3) 35%, rgba(168,85,247,0.5) 50%, rgba(168,85,247,0.3) 65%, transparent 90%)',
+          }} />
+
+          {/* Main content */}
+          <div className="relative z-10 flex flex-col items-center text-center px-4" style={{ animation: 'home-float 6s ease-in-out infinite' }}>
+
+            {/* System tag */}
+            <p className="text-cyan-500/40 font-mono text-[10px] tracking-[0.8em] uppercase mb-6" style={{ animation: 'home-stat-count 1s ease-out 0.2s both' }}>
+              SYSTEM v2.1 // COMBAT SIMULATION
+            </p>
+
+            {/* Title group */}
+            <div className="relative px-6 py-3" style={{ animation: 'home-title-glow 4s ease-in-out infinite' }}>
+              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-500 font-black text-[7rem] md:text-[9rem] tracking-tight italic leading-[0.85]">
                 NOVA
               </h1>
-              {/* Glitch double */}
-              <h1 className="absolute inset-0 px-4 py-2 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500/30 to-cyan-500/30 font-black text-8xl md:text-9xl tracking-tight italic leading-tight pointer-events-none"
-                style={{ transform: 'translate(2px, -1px)', opacity: 0.4 }}>
+              {/* Glitch layers */}
+              <h1 className="absolute inset-0 px-6 py-3 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500/40 to-cyan-500/40 font-black text-[7rem] md:text-[9rem] tracking-tight italic leading-[0.85] pointer-events-none"
+                style={{ transform: 'translate(3px, -2px)', opacity: 0.3, animation: 'gameover-glitch 4s steps(1) infinite' }}>
+                NOVA
+              </h1>
+              <h1 className="absolute inset-0 px-6 py-3 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-500/30 to-purple-500/30 font-black text-[7rem] md:text-[9rem] tracking-tight italic leading-[0.85] pointer-events-none"
+                style={{ transform: 'translate(-2px, 1px)', opacity: 0.2 }}>
                 NOVA
               </h1>
             </div>
-            <p className="text-cyan-300/70 font-mono text-sm md:text-base tracking-[0.5em] uppercase font-medium mt-1">ARENA SHOOTER</p>
-            
-            {/* Divider */}
-            <div className="w-64 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent mt-2" />
-            
-            {/* CTA */}
-            <div className="mt-4 flex flex-col gap-3 items-center">
-              <div className="flex gap-3">
+
+            {/* Subtitle with line decoration */}
+            <div className="flex items-center gap-4 mt-3" style={{ animation: 'home-stat-count 1s ease-out 0.5s both' }}>
+              <div className="w-16 h-px bg-gradient-to-r from-transparent to-cyan-400/50" />
+              <p className="text-cyan-200/60 font-mono text-sm tracking-[0.6em] uppercase font-light">ARENA SHOOTER</p>
+              <div className="w-16 h-px bg-gradient-to-l from-transparent to-cyan-400/50" />
+            </div>
+
+            {/* Animated divider */}
+            <svg className="mt-6 mb-6" width="300" height="3" viewBox="0 0 300 3" style={{ animation: 'home-stat-count 1s ease-out 0.7s both' }}>
+              <line x1="0" y1="1.5" x2="300" y2="1.5" stroke="url(#divGrad)" strokeWidth="1" strokeDasharray="100" style={{ animation: 'home-line-draw 2s ease-out forwards' }} />
+              <defs><linearGradient id="divGrad"><stop offset="0%" stopColor="transparent"/><stop offset="50%" stopColor="rgba(34,211,238,0.6)"/><stop offset="100%" stopColor="transparent"/></linearGradient></defs>
+              <circle cx="150" cy="1.5" r="1.5" fill="#22d3ee" opacity="0.8" />
+            </svg>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col gap-4 items-center" style={{ animation: 'home-stat-count 1s ease-out 0.9s both' }}>
+              <div className="flex gap-4">
                 <button onClick={handleStartGame}
-                  className="group relative px-14 py-4 rounded-lg border border-cyan-400/70 bg-cyan-500/10 text-white font-orbitron font-black tracking-[0.4em] text-base hover:bg-cyan-400/25 hover:border-cyan-300 transition-all uppercase cursor-pointer overflow-hidden">
+                  className="group relative px-16 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.4em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
+                  style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.12), rgba(59,130,246,0.08))', border: '1px solid rgba(34,211,238,0.5)', boxShadow: '0 0 30px rgba(34,211,238,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                   <span className="relative z-10">NEW GAME</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'linear-gradient(135deg, rgba(34,211,238,0.2), rgba(59,130,246,0.15))' }} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/15 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                  <div className="absolute bottom-0 left-[10%] right-[10%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.6), transparent)', animation: 'home-border-sweep 3s linear infinite', backgroundSize: '200% 100%' }} />
                 </button>
                 {hasSave() && (
                   <button onClick={() => { loadGame(); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
-                    className="group relative px-10 py-4 rounded-lg border border-emerald-400/70 bg-emerald-500/10 text-white font-orbitron font-black tracking-[0.3em] text-base hover:bg-emerald-400/25 hover:border-emerald-300 transition-all uppercase cursor-pointer overflow-hidden">
+                    className="group relative px-12 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.3em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
+                    style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.08))', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 30px rgba(16,185,129,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                     <span className="relative z-10">CONTINUE</span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(34,211,238,0.15))' }} />
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/15 to-emerald-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                    <div className="absolute bottom-0 left-[10%] right-[10%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.6), transparent)', animation: 'home-border-sweep 3s linear infinite', backgroundSize: '200% 100%' }} />
                   </button>
                 )}
               </div>
-              <div className="flex gap-4 text-cyan-500/40 font-mono text-[10px] tracking-widest uppercase mt-1">
+
+              {/* Controls hint */}
+              <div className="flex gap-5 text-cyan-500/30 font-mono text-[10px] tracking-widest uppercase mt-2">
                 <span>WASD Move</span>
-                <span>&middot;</span>
+                <span className="text-cyan-500/15">&bull;</span>
                 <span>Mouse Aim</span>
-                <span>&middot;</span>
+                <span className="text-cyan-500/15">&bull;</span>
                 <span>Click Shoot</span>
-                <span>&middot;</span>
+                <span className="text-cyan-500/15">&bull;</span>
                 <span>Q Weapon Wheel</span>
               </div>
             </div>
 
             {/* Stats row */}
-            <div className="mt-10 flex gap-6 text-center">
+            <div className="mt-12 flex gap-8 text-center">
               {[
-                { label: 'WEAPONS', value: '6', sub: 'CLASSES' },
-                { label: 'ENEMIES', value: '7', sub: 'TYPES' },
-                { label: 'UPGRADES', value: '30', sub: 'TOTAL' },
-                { label: 'WAVES', value: '∞', sub: 'ENDLESS' },
+                { label: 'WEAPONS', value: '18', sub: 'CLASSES', delay: '1.1s' },
+                { label: 'ENEMIES', value: '7', sub: 'TYPES', delay: '1.3s' },
+                { label: 'UPGRADES', value: '90', sub: 'TOTAL', delay: '1.5s' },
+                { label: 'WAVES', value: '∞', sub: 'ENDLESS', delay: '1.7s' },
               ].map((s) => (
-                <div key={s.label} className="flex flex-col items-center gap-0.5 min-w-[70px]">
-                  <span className="text-cyan-500/50 font-mono text-[9px] uppercase tracking-[0.3em]">{s.label}</span>
-                  <span className="text-white font-orbitron font-black text-2xl">{s.value}</span>
-                  <span className="text-cyan-400/30 font-mono text-[9px] uppercase">{s.sub}</span>
+                <div key={s.label} className="flex flex-col items-center gap-1 min-w-[75px]" style={{ animation: `home-stat-count 0.8s ease-out ${s.delay} both` }}>
+                  <span className="text-cyan-500/40 font-mono text-[9px] uppercase tracking-[0.3em]">{s.label}</span>
+                  <span className="text-white font-orbitron font-black text-3xl" style={{ filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.3))' }}>{s.value}</span>
+                  <span className="text-cyan-400/20 font-mono text-[8px] uppercase tracking-wider">{s.sub}</span>
                 </div>
               ))}
             </div>
+
+            {/* Version tag */}
+            <p className="mt-10 text-cyan-800/40 font-mono text-[9px] tracking-[0.4em] uppercase" style={{ animation: 'home-stat-count 1s ease-out 2s both' }}>
+              BUILD 2.1.0 // ALL SYSTEMS OPERATIONAL
+            </p>
           </div>
         </div>
       )}

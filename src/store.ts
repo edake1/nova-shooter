@@ -2,9 +2,9 @@ import { create } from 'zustand';
 
 export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber' | 'spitter' | 'charger' | 'shielder' | 'phantom';
 
-export type WeaponClass = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden';
-export type WeaponType = 'pulse_pistol' | 'plasma_caster' | 'frag_launcher' | 'shrapnel_blaster' | 'cryo_emitter' | 'void_reaper';
-export type ExplosionType = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden';
+export type WeaponClass = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden' | 'arc' | 'beam' | 'force' | 'singularity' | 'swarm' | 'sonic' | 'nano' | 'photon' | 'whip' | 'warp';
+export type WeaponType = 'pulse_pistol' | 'plasma_caster' | 'frag_launcher' | 'shrapnel_blaster' | 'cryo_emitter' | 'void_reaper' | 'lightning_coil' | 'blade_wave' | 'railgun' | 'gravity_well' | 'swarm_missiles' | 'beam_laser' | 'ricochet_cannon' | 'sonic_boom' | 'nano_swarm' | 'photon_burst' | 'plasma_whip' | 'warp_lance';
+export type ExplosionType = 'kinetic' | 'energy' | 'explosive' | 'spread' | 'tech' | 'forbidden' | 'arc' | 'beam' | 'force' | 'singularity' | 'swarm' | 'sonic' | 'nano' | 'photon' | 'whip' | 'warp';
 
 export const WEAPON_CLASS: Record<WeaponType, WeaponClass> = {
   pulse_pistol: 'kinetic',
@@ -13,6 +13,18 @@ export const WEAPON_CLASS: Record<WeaponType, WeaponClass> = {
   shrapnel_blaster: 'spread',
   cryo_emitter: 'tech',
   void_reaper: 'forbidden',
+  lightning_coil: 'arc',
+  blade_wave: 'force',
+  railgun: 'kinetic',
+  gravity_well: 'singularity',
+  swarm_missiles: 'swarm',
+  beam_laser: 'beam',
+  ricochet_cannon: 'kinetic',
+  sonic_boom: 'sonic',
+  nano_swarm: 'nano',
+  photon_burst: 'photon',
+  plasma_whip: 'whip',
+  warp_lance: 'warp',
 };
 
 export const MAX_WEAPON_LEVEL = 5;
@@ -34,6 +46,19 @@ export const WEAPON_PROFILES: WeaponProfile[] = [
   { id: 'shrapnel_blaster', label: 'Shrapnel Blaster', blurb: 'Wide cone of metal death. Up close and personal.', weaponClass: 'spread', unlockCost: 4000, baseUpgradeCost: 3000, accent: 'amber' },
   { id: 'cryo_emitter', label: 'Cryo Emitter', blurb: 'Flash-freeze cone. Slows enemies to a crawl.', weaponClass: 'tech', unlockCost: 8000, baseUpgradeCost: 5000, accent: 'blue' },
   { id: 'void_reaper', label: 'Void Reaper', blurb: 'Forbidden chain scythe. Reality itself recoils.', weaponClass: 'forbidden', unlockCost: 50000, baseUpgradeCost: 15000, accent: 'purple' },
+  // New weapons
+  { id: 'lightning_coil', label: 'Lightning Coil', blurb: 'Arc lightning chains between foes. More targets, more carnage.', weaponClass: 'arc', unlockCost: 6000, baseUpgradeCost: 4000, accent: 'yellow' },
+  { id: 'blade_wave', label: 'Blade Wave', blurb: 'Devastating sword aura arc. Obliterates everything in its path.', weaponClass: 'force', unlockCost: 10000, baseUpgradeCost: 6000, accent: 'rose' },
+  { id: 'railgun', label: 'Railgun', blurb: 'Hypersonic penetrator. Punches through entire formations.', weaponClass: 'kinetic', unlockCost: 7000, baseUpgradeCost: 5000, accent: 'emerald' },
+  { id: 'gravity_well', label: 'Gravity Well', blurb: 'Launches a singularity that pulls enemies together, then detonates.', weaponClass: 'singularity', unlockCost: 12000, baseUpgradeCost: 7000, accent: 'violet' },
+  { id: 'swarm_missiles', label: 'Swarm Missiles', blurb: 'Volley of micro-missiles that lock onto nearest targets.', weaponClass: 'swarm', unlockCost: 8000, baseUpgradeCost: 5000, accent: 'red' },
+  { id: 'beam_laser', label: 'Beam Laser', blurb: 'Continuous precision beam. Hold to burn through armor.', weaponClass: 'beam', unlockCost: 9000, baseUpgradeCost: 6000, accent: 'lime' },
+  { id: 'ricochet_cannon', label: 'Ricochet Cannon', blurb: 'Bouncing rounds that careen between enemies.', weaponClass: 'kinetic', unlockCost: 6000, baseUpgradeCost: 4000, accent: 'teal' },
+  { id: 'sonic_boom', label: 'Sonic Boom', blurb: 'Cone shockwave that sends enemies flying.', weaponClass: 'sonic', unlockCost: 7000, baseUpgradeCost: 4500, accent: 'sky' },
+  { id: 'nano_swarm', label: 'Nano Swarm', blurb: 'Cloud of nanobots that eats through organic matter.', weaponClass: 'nano', unlockCost: 15000, baseUpgradeCost: 8000, accent: 'green' },
+  { id: 'photon_burst', label: 'Photon Burst', blurb: 'Charge up, then unleash a massive energy nova.', weaponClass: 'photon', unlockCost: 11000, baseUpgradeCost: 6500, accent: 'yellow' },
+  { id: 'plasma_whip', label: 'Plasma Whip', blurb: 'Crackling energy lash. Wide arc, brutal damage.', weaponClass: 'whip', unlockCost: 9000, baseUpgradeCost: 5500, accent: 'pink' },
+  { id: 'warp_lance', label: 'Warp Lance', blurb: 'Teleport-strike. Blink behind enemies and impale them.', weaponClass: 'warp', unlockCost: 20000, baseUpgradeCost: 10000, accent: 'indigo' },
 ];
 
 // Upgrade cost multipliers per level: Lv1→2, Lv2→3, Lv3→4, Lv4→5
@@ -101,6 +126,34 @@ export interface EnemyProjectile {
 }
 // === END ENEMY PROJECTILES ===
 
+// === COMBO SYSTEM ===
+export interface ComboState {
+  count: number;
+  multiplier: number;
+  lastKillAt: number;
+  maxCombo: number;
+}
+
+const COMBO_WINDOW = 3000; // 3 seconds to keep combo alive
+const COMBO_TIERS = [
+  { threshold: 0, label: '', multiplier: 1.0, color: '#ffffff' },
+  { threshold: 3, label: 'COMBO', multiplier: 1.5, color: '#22d3ee' },
+  { threshold: 6, label: 'RAMPAGE', multiplier: 2.0, color: '#f59e0b' },
+  { threshold: 10, label: 'CARNAGE', multiplier: 2.5, color: '#ef4444' },
+  { threshold: 15, label: 'MASSACRE', multiplier: 3.0, color: '#f97316' },
+  { threshold: 20, label: 'GODLIKE', multiplier: 4.0, color: '#a855f7' },
+  { threshold: 30, label: 'NOVA STREAK', multiplier: 5.0, color: '#ec4899' },
+];
+
+export function getComboTier(count: number) {
+  let tier = COMBO_TIERS[0];
+  for (const t of COMBO_TIERS) {
+    if (count >= t.threshold) tier = t;
+  }
+  return tier;
+}
+// === END COMBO ===
+
 export interface EnemyData {
   id: number;
   position: [number, number, number];
@@ -145,6 +198,11 @@ interface GameState {
   equippedWeapon: WeaponType;
   weaponLevels: Record<WeaponType, number>;
   hudSettings: HudSettings;
+  // Combo
+  combo: ComboState;
+  registerKill: () => void;
+  tickCombo: () => void;
+  //
   incScore: (val: number) => void;
   damageEnemy: (id: number, amount: number) => void;
   removeEnemy: (id: number) => void;
@@ -175,6 +233,7 @@ interface GameState {
   // Enemy projectiles
   spawnEnemyProjectile: (pos: [number, number, number], vel: [number, number, number], damage: number, color: string) => void;
   tickEnemyProjectiles: (playerPos: [number, number, number]) => void;
+  destroyEnemyProjectile: (id: number) => void;
   // Save system
   saveGame: () => void;
   loadGame: () => boolean;
@@ -234,13 +293,11 @@ export const useStore = create<GameState>((set) => ({
   playerMaxHealth: PLAYER_MAX_HEALTH,
   equippedWeapon: 'pulse_pistol' as WeaponType,
   weaponLevels: {
-    pulse_pistol: 1,
-    plasma_caster: 0,
-    frag_launcher: 0,
-    shrapnel_blaster: 0,
-    cryo_emitter: 0,
-    void_reaper: 0,
+    pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0,
+    lightning_coil: 0, blade_wave: 0, railgun: 0, gravity_well: 0, swarm_missiles: 0, beam_laser: 0,
+    ricochet_cannon: 0, sonic_boom: 0, nano_swarm: 0, photon_burst: 0, plasma_whip: 0, warp_lance: 0,
   } as Record<WeaponType, number>,
+  combo: { count: 0, multiplier: 1, lastKillAt: 0, maxCombo: 0 },
   hudSettings: {
     reticleScale: 1,
     highContrastReticle: false,
@@ -270,7 +327,8 @@ export const useStore = create<GameState>((set) => ({
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
     equippedWeapon: 'pulse_pistol' as WeaponType,
-    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0 },
+    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0, lightning_coil: 0, blade_wave: 0, railgun: 0, gravity_well: 0, swarm_missiles: 0, beam_laser: 0, ricochet_cannon: 0, sonic_boom: 0, nano_swarm: 0, photon_burst: 0, plasma_whip: 0, warp_lance: 0 },
+    combo: { count: 0, multiplier: 1, lastKillAt: 0, maxCombo: 0 },
     enemies: [
       { id: nextId(), position: [0, 4, -30] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
       { id: nextId(), position: [20, 3, -35] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
@@ -320,7 +378,8 @@ export const useStore = create<GameState>((set) => ({
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
     equippedWeapon: 'pulse_pistol',
-    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0 },
+    weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0, lightning_coil: 0, blade_wave: 0, railgun: 0, gravity_well: 0, swarm_missiles: 0, beam_laser: 0, ricochet_cannon: 0, sonic_boom: 0, nano_swarm: 0, photon_burst: 0, plasma_whip: 0, warp_lance: 0 },
+    combo: { count: 0, multiplier: 1, lastKillAt: 0, maxCombo: 0 },
   }),
   buyWeaponUpgrade: (weapon, cost) => {
     let success = false;
@@ -381,23 +440,55 @@ export const useStore = create<GameState>((set) => ({
       const kills = state.killsThisLevel + 1;
       const newTotal = state.totalKills + 1;
       const requiredKills = state.level * 10;
+      // Combo tracking
+      const now = performance.now();
+      const comboActive = state.combo.lastKillAt > 0 && (now - state.combo.lastKillAt) < COMBO_WINDOW;
+      const newCount = comboActive ? state.combo.count + 1 : 1;
+      const tier = getComboTier(newCount);
+      const newCombo: ComboState = {
+        count: newCount,
+        multiplier: tier.multiplier,
+        lastKillAt: now,
+        maxCombo: Math.max(state.combo.maxCombo, newCount),
+      };
+      if (newCount >= 3) {
+        window.dispatchEvent(new CustomEvent('nova:combo', { detail: { count: newCount, tier: tier.label, multiplier: tier.multiplier } }));
+      }
       if (kills >= requiredKills) {
-        // Auto-save on level up
+        const newLevel = Math.min(state.level + 1, 10);
+        window.dispatchEvent(new CustomEvent('nova:levelup', { detail: { level: newLevel } }));
         setTimeout(() => useStore.getState().saveGame(), 0);
         return {
           enemies: newEnemies,
           killsThisLevel: 0,
           totalKills: newTotal,
-          level: Math.min(state.level + 1, 10)
+          level: newLevel,
+          combo: newCombo,
         };
       }
       return {
         enemies: newEnemies,
         killsThisLevel: kills,
         totalKills: newTotal,
+        combo: newCombo,
       };
     }
     return { enemies: newEnemies };
+  }),
+  registerKill: () => set((state) => {
+    const now = performance.now();
+    const comboActive = state.combo.lastKillAt > 0 && (now - state.combo.lastKillAt) < COMBO_WINDOW;
+    const newCount = comboActive ? state.combo.count + 1 : 1;
+    const tier = getComboTier(newCount);
+    return { combo: { count: newCount, multiplier: tier.multiplier, lastKillAt: now, maxCombo: Math.max(state.combo.maxCombo, newCount) } };
+  }),
+  tickCombo: () => set((state) => {
+    if (state.combo.count === 0) return state;
+    const now = performance.now();
+    if ((now - state.combo.lastKillAt) > COMBO_WINDOW) {
+      return { combo: { ...state.combo, count: 0, multiplier: 1 } };
+    }
+    return state;
   }),
   spawnEnemies: (playerPos) => set((state) => {
     const maxEnemies = 5 + state.level * 3;
@@ -535,6 +626,10 @@ export const useStore = create<GameState>((set) => ({
     }
     return { enemyProjectiles: surviving };
   }),
+
+  destroyEnemyProjectile: (id) => set((state) => ({
+    enemyProjectiles: state.enemyProjectiles.filter(p => p.id !== id),
+  })),
 
   // === SAVE SYSTEM ===
   saveGame: () => {

@@ -30,6 +30,18 @@ function getWeaponStats(id: WeaponType, level: number) {
     case 'shrapnel_blaster': return { damage: Math.round(20 * dmgMult), rate: Math.round(50 * rateMult), range: 30, special: 65 + l * 5 };
     case 'cryo_emitter':     return { damage: Math.round(10 * dmgMult), rate: Math.round(70 * rateMult), range: 20, special: 55 + l * 7 };
     case 'void_reaper':      return { damage: Math.round(80 * dmgMult), rate: Math.round(35 * rateMult), range: 50, special: 85 + l * 3 };
+    case 'lightning_coil':   return { damage: Math.round(30 * dmgMult), rate: Math.round(50 * rateMult), range: 55, special: 40 + l * 6 };
+    case 'blade_wave':       return { damage: Math.round(45 * dmgMult), rate: Math.round(35 * rateMult), range: 25, special: 75 + l * 4 };
+    case 'railgun':          return { damage: Math.round(90 * dmgMult), rate: Math.round(15 * rateMult), range: 95, special: 60 + l * 5 };
+    case 'gravity_well':     return { damage: Math.round(70 * dmgMult), rate: Math.round(12 * rateMult), range: 40, special: 80 + l * 4 };
+    case 'swarm_missiles':   return { damage: Math.round(15 * dmgMult), rate: Math.round(35 * rateMult), range: 65, special: 50 + l * 6 };
+    case 'beam_laser':       return { damage: Math.round(28 * dmgMult), rate: Math.round(90 * rateMult), range: 90, special: 25 + l * 5 };
+    case 'ricochet_cannon':  return { damage: Math.round(30 * dmgMult), rate: Math.round(40 * rateMult), range: 60, special: 55 + l * 6 };
+    case 'sonic_boom':       return { damage: Math.round(50 * dmgMult), rate: Math.round(28 * rateMult), range: 35, special: 60 + l * 5 };
+    case 'nano_swarm':       return { damage: Math.round(15 * dmgMult), rate: Math.round(20 * rateMult), range: 50, special: 85 + l * 3 };
+    case 'photon_burst':     return { damage: Math.round(55 * dmgMult), rate: Math.round(22 * rateMult), range: 30, special: 70 + l * 5 };
+    case 'plasma_whip':      return { damage: Math.round(32 * dmgMult), rate: Math.round(45 * rateMult), range: 20, special: 65 + l * 5 };
+    case 'warp_lance':       return { damage: Math.round(95 * dmgMult), rate: Math.round(10 * rateMult), range: 98, special: 90 + l * 2 };
     default:                 return { damage: 25, rate: 60, range: 50, special: 20 };
   }
 }
@@ -51,6 +63,17 @@ function accentClasses(accent: string) {
   if (accent === "blue") return "border-blue-400/40 text-blue-300 bg-blue-500/10";
   if (accent === "purple") return "border-purple-400/40 text-purple-300 bg-purple-500/10";
   if (accent === "slate") return "border-slate-400/40 text-slate-300 bg-slate-500/10";
+  if (accent === "yellow") return "border-yellow-400/40 text-yellow-300 bg-yellow-500/10";
+  if (accent === "rose") return "border-rose-400/40 text-rose-300 bg-rose-500/10";
+  if (accent === "emerald") return "border-emerald-400/40 text-emerald-300 bg-emerald-500/10";
+  if (accent === "violet") return "border-violet-400/40 text-violet-300 bg-violet-500/10";
+  if (accent === "red") return "border-red-400/40 text-red-300 bg-red-500/10";
+  if (accent === "lime") return "border-lime-400/40 text-lime-300 bg-lime-500/10";
+  if (accent === "teal") return "border-teal-400/40 text-teal-300 bg-teal-500/10";
+  if (accent === "sky") return "border-sky-400/40 text-sky-300 bg-sky-500/10";
+  if (accent === "green") return "border-green-400/40 text-green-300 bg-green-500/10";
+  if (accent === "pink") return "border-pink-400/40 text-pink-300 bg-pink-500/10";
+  if (accent === "indigo") return "border-indigo-400/40 text-indigo-300 bg-indigo-500/10";
   return "border-cyan-400/40 text-cyan-300 bg-cyan-500/10";
 }
 

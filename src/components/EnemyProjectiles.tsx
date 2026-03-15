@@ -47,7 +47,7 @@ function Projectile({ proj }: { proj: EnemyProjectile }) {
   });
 
   return (
-    <group>
+    <group userData={{ isEnemyProjectile: true, id: proj.id }}>
       {/* Core projectile */}
       <mesh ref={meshRef} position={posRef.current}>
         <sphereGeometry args={[0.1, 6, 6]} />
