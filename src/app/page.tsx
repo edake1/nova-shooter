@@ -176,7 +176,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase } = useStore();
+  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -542,11 +542,20 @@ export default function Game() {
             
             {/* CTA */}
             <div className="mt-4 flex flex-col gap-3 items-center">
-              <button onClick={handleStartGame}
-                className="group relative px-14 py-4 rounded-lg border border-cyan-400/70 bg-cyan-500/10 text-white font-orbitron font-black tracking-[0.4em] text-base hover:bg-cyan-400/25 hover:border-cyan-300 transition-all uppercase cursor-pointer overflow-hidden">
-                <span className="relative z-10">ENTER</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              </button>
+              <div className="flex gap-3">
+                <button onClick={handleStartGame}
+                  className="group relative px-14 py-4 rounded-lg border border-cyan-400/70 bg-cyan-500/10 text-white font-orbitron font-black tracking-[0.4em] text-base hover:bg-cyan-400/25 hover:border-cyan-300 transition-all uppercase cursor-pointer overflow-hidden">
+                  <span className="relative z-10">NEW GAME</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                </button>
+                {hasSave() && (
+                  <button onClick={() => { loadGame(); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
+                    className="group relative px-10 py-4 rounded-lg border border-emerald-400/70 bg-emerald-500/10 text-white font-orbitron font-black tracking-[0.3em] text-base hover:bg-emerald-400/25 hover:border-emerald-300 transition-all uppercase cursor-pointer overflow-hidden">
+                    <span className="relative z-10">CONTINUE</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                  </button>
+                )}
+              </div>
               <div className="flex gap-4 text-cyan-500/40 font-mono text-[10px] tracking-widest uppercase mt-1">
                 <span>WASD Move</span>
                 <span>&middot;</span>

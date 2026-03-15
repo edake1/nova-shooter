@@ -175,7 +175,39 @@ interface GameState {
   // Enemy projectiles
   spawnEnemyProjectile: (pos: [number, number, number], vel: [number, number, number], damage: number, color: string) => void;
   tickEnemyProjectiles: (playerPos: [number, number, number]) => void;
+  // Save system
+  saveGame: () => void;
+  loadGame: () => boolean;
+  hasSave: () => boolean;
+  deleteSave: () => void;
 }
+
+// === SAVE SYSTEM ===
+const SAVE_KEY = 'nova_save';
+
+interface SaveData {
+  level: number;
+  score: number;
+  totalKills: number;
+  weaponLevels: Record<string, number>;
+  equippedWeapon: string;
+  playerHealth: number;
+  hudSettings: HudSettings;
+  savedAt: number;
+}
+
+function writeSave(data: SaveData) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch {}
+}
+
+function readSave(): SaveData | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SaveData;
+  } catch { return null; }
+}
+// === END SAVE ===
 
 const INITIAL_ENEMIES: EnemyData[] = [
   { id: nextId(), position: [0, 4, -30], type: 'swarmer', health: 1, maxHealth: 1 },
@@ -222,7 +254,10 @@ export const useStore = create<GameState>((set) => ({
   activeBuffs: [],
   shieldHP: 0,
   incScore: (val) => set((state) => ({ score: state.score + val })),
-  setPaused: (val) => set({ isPaused: val }),
+  setPaused: (val) => {
+    set({ isPaused: val });
+    if (val) setTimeout(() => useStore.getState().saveGame(), 0);
+  },
   setGamePhase: (phase) => set({ gamePhase: phase, isPaused: phase !== 'playing', isGameOver: phase === 'gameover' }),
   startGame: () => set({
     gamePhase: 'playing' as GamePhase,
@@ -347,6 +382,8 @@ export const useStore = create<GameState>((set) => ({
       const newTotal = state.totalKills + 1;
       const requiredKills = state.level * 10;
       if (kills >= requiredKills) {
+        // Auto-save on level up
+        setTimeout(() => useStore.getState().saveGame(), 0);
         return {
           enemies: newEnemies,
           killsThisLevel: 0,
@@ -498,4 +535,51 @@ export const useStore = create<GameState>((set) => ({
     }
     return { enemyProjectiles: surviving };
   }),
+
+  // === SAVE SYSTEM ===
+  saveGame: () => {
+    const s = useStore.getState();
+    writeSave({
+      level: s.level,
+      score: s.score,
+      totalKills: s.totalKills,
+      weaponLevels: s.weaponLevels,
+      equippedWeapon: s.equippedWeapon,
+      playerHealth: s.playerHealth,
+      hudSettings: s.hudSettings,
+      savedAt: Date.now(),
+    });
+  },
+
+  loadGame: () => {
+    const data = readSave();
+    if (!data) return false;
+    useStore.setState({
+      gamePhase: 'playing' as GamePhase,
+      isPaused: false,
+      isGameOver: false,
+      level: data.level,
+      score: data.score,
+      totalKills: data.totalKills,
+      killsThisLevel: 0,
+      weaponLevels: data.weaponLevels as Record<WeaponType, number>,
+      equippedWeapon: data.equippedWeapon as WeaponType,
+      playerHealth: data.playerHealth,
+      playerMaxHealth: PLAYER_MAX_HEALTH,
+      hudSettings: { ...useStore.getState().hudSettings, ...data.hudSettings },
+      enemies: [],
+      enemyProjectiles: [],
+      explosions: [],
+      lootDrops: [],
+      activeBuffs: [],
+      shieldHP: 0,
+    });
+    return true;
+  },
+
+  hasSave: () => readSave() !== null,
+
+  deleteSave: () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+  },
 }));
