@@ -33,6 +33,7 @@ interface GameState {
   score: number;
   level: number;
   killsThisLevel: number;
+  totalKills: number;
   enemies: EnemyData[];
   explosions: ExplosionData[];
   isPaused: boolean;
@@ -72,6 +73,7 @@ export const useStore = create<GameState>((set) => ({
   score: 0,
   level: 1,
   killsThisLevel: 0,
+  totalKills: 0,
   enemies: INITIAL_ENEMIES,
   explosions: [],
   isPaused: true,
@@ -105,6 +107,7 @@ export const useStore = create<GameState>((set) => ({
     score: 0,
     level: 1,
     killsThisLevel: 0,
+    totalKills: 0,
     enemies: [
       { id: nextId(), position: [0, 4, -10], type: 'swarmer', health: 1, maxHealth: 1 },
       { id: nextId(), position: [5, 3, -15], type: 'swarmer', health: 1, maxHealth: 1 },
@@ -164,17 +167,20 @@ export const useStore = create<GameState>((set) => ({
     const newEnemies = state.enemies.filter(e => e.id !== id);
     if (newEnemies.length < state.enemies.length) {
       const kills = state.killsThisLevel + 1;
+      const newTotal = state.totalKills + 1;
       const requiredKills = state.level * 10;
       if (kills >= requiredKills) {
         return {
           enemies: newEnemies,
           killsThisLevel: 0,
+          totalKills: newTotal,
           level: Math.min(state.level + 1, 10)
         };
       }
       return {
         enemies: newEnemies,
-        killsThisLevel: kills
+        killsThisLevel: kills,
+        totalKills: newTotal,
       };
     }
     return { enemies: newEnemies };
