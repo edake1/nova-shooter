@@ -152,6 +152,7 @@ export function Weapon() {
   const spreadDir = useMemo(() => new THREE.Vector3(), []);
   const aoePos = useMemo(() => new THREE.Vector3(), []);
   const enemyPos = useMemo(() => new THREE.Vector3(), []);
+  const projVec = useMemo(() => new THREE.Vector3(), []);
 
   // Helper: damage or kill a single enemy, returns true if killed
   const hitEnemy = useCallback((state: ReturnType<typeof useStore.getState>, enemyId: number, damage: number, explosion: ExplosionType, hitObj?: THREE.Object3D) => {
@@ -168,11 +169,51 @@ export function Weapon() {
         useStore.getState().addExplosion([worldPos.x, worldPos.y, worldPos.z], expColor, explosion);
         useStore.getState().spawnLootDrop(enemy.type, [worldPos.x, worldPos.y, worldPos.z]);
       }
+      // Floating damage number (kill)
+      projVec.set(
+        hitObj ? worldPos.x : enemy.position[0],
+        hitObj ? worldPos.y : enemy.position[1],
+        hitObj ? worldPos.z : enemy.position[2],
+      ).project(camera);
+      if (projVec.z < 1) {
+        window.dispatchEvent(new CustomEvent('nova:damage', { detail: { x: (projVec.x * 0.5 + 0.5) * window.innerWidth, y: (-projVec.y * 0.5 + 0.5) * window.innerHeight, damage, kill: true } }));
+      }
+      // Screen shake on kill
+      window.dispatchEvent(new CustomEvent('nova:shake', { detail: { intensity: enemy.type === 'bomber' ? 0.8 : enemy.type === 'juggernaut' ? 0.6 : 0.3 } }));
+      // Bomber death AOE — blast damages player
+      if (enemy.type === 'bomber') {
+        const bx = hitObj ? worldPos.x : enemy.position[0];
+        const by = hitObj ? worldPos.y : enemy.position[1];
+        const bz = hitObj ? worldPos.z : enemy.position[2];
+        const dx = bx - camera.position.x, dy = by - camera.position.y, dz = bz - camera.position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const BLAST_R = 8, BLAST_DMG = 25;
+        if (dist < BLAST_R) {
+          const aoeDmg = Math.round(BLAST_DMG * (1 - dist / BLAST_R));
+          if (aoeDmg > 0) {
+            useStore.getState().damagePlayer(aoeDmg);
+            window.dispatchEvent(new CustomEvent('nova:playerHit', { detail: { damage: aoeDmg } }));
+          }
+        }
+        useStore.getState().addExplosion(
+          [bx, by, bz], '#ff6600', 'explosive'
+        );
+      }
       return true;
     }
     useStore.getState().damageEnemy(enemyId, damage);
+    // Floating damage number (hit)
+    if (hitObj) hitObj.getWorldPosition(worldPos);
+    projVec.set(
+      hitObj ? worldPos.x : enemy.position[0],
+      hitObj ? worldPos.y : enemy.position[1],
+      hitObj ? worldPos.z : enemy.position[2],
+    ).project(camera);
+    if (projVec.z < 1) {
+      window.dispatchEvent(new CustomEvent('nova:damage', { detail: { x: (projVec.x * 0.5 + 0.5) * window.innerWidth, y: (-projVec.y * 0.5 + 0.5) * window.innerHeight, damage, kill: false } }));
+    }
     return false;
-  }, [worldPos]);
+  }, [worldPos, camera, projVec]);
 
   // Find first enemy hit along a ray direction
   const raycastEnemy = useCallback((origin: THREE.Vector3, dir: THREE.Vector3): { obj: THREE.Object3D; id: number } | null => {

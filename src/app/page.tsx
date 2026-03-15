@@ -252,6 +252,50 @@ export default function Game() {
     return () => cancelAnimationFrame(id);
   }, [damageFlash]);
 
+  // Screen shake — applies CSS transform to game-root on explosions/kills
+  useEffect(() => {
+    let intensity = 0;
+    let frame: number;
+    const el = document.getElementById('game-root');
+    const handleShake = (e: Event) => {
+      intensity = Math.max(intensity, (e as CustomEvent).detail.intensity);
+    };
+    const tick = () => {
+      if (el) {
+        if (intensity > 0.01) {
+          el.style.transform = `translate(${(Math.random() - 0.5) * intensity * 10}px, ${(Math.random() - 0.5) * intensity * 10}px)`;
+          intensity *= 0.85;
+        } else if (intensity > 0) {
+          intensity = 0;
+          el.style.transform = '';
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    window.addEventListener('nova:shake', handleShake as EventListener);
+    return () => { window.removeEventListener('nova:shake', handleShake as EventListener); cancelAnimationFrame(frame); };
+  }, []);
+
+  // Floating damage numbers — creates DOM elements directly for zero React overhead
+  useEffect(() => {
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:150;overflow:hidden';
+    document.body.appendChild(container);
+    const handleDmg = (e: Event) => {
+      const { x, y, damage: dmg, kill } = (e as CustomEvent).detail;
+      const el = document.createElement('div');
+      el.className = `dmg-num ${kill ? 'dmg-kill' : 'dmg-hit'}`;
+      el.textContent = kill ? `${dmg} ✗` : `${dmg}`;
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 900);
+    };
+    window.addEventListener('nova:damage', handleDmg as EventListener);
+    return () => { window.removeEventListener('nova:damage', handleDmg as EventListener); container.remove(); };
+  }, []);
+
   useEffect(() => {
     const handlePointerLockChange = () => {
       const activeLock = Boolean(document.pointerLockElement);

@@ -455,7 +455,7 @@ export const useStore = create<GameState>((set) => ({
         window.dispatchEvent(new CustomEvent('nova:combo', { detail: { count: newCount, tier: tier.label, multiplier: tier.multiplier } }));
       }
       if (kills >= requiredKills) {
-        const newLevel = Math.min(state.level + 1, 10);
+        const newLevel = state.level + 1;
         window.dispatchEvent(new CustomEvent('nova:levelup', { detail: { level: newLevel } }));
         setTimeout(() => useStore.getState().saveGame(), 0);
         return {
