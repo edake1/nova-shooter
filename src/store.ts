@@ -4,6 +4,8 @@ export type EnemyType = 'swarmer' | 'juggernaut' | 'bomber';
 export type WeaponType = 'plasmacaster' | 'shrapnel' | 'bio' | 'nuke';
 export type ExplosionType = 'plasma' | 'shrapnel' | 'bio' | 'nuke';
 
+export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover';
+
 export interface EnemyData {
   id: number;
   position: [number, number, number];
@@ -30,6 +32,7 @@ let _nextId = 1;
 function nextId() { return _nextId++; }
 
 interface GameState {
+  gamePhase: GamePhase;
   score: number;
   level: number;
   killsThisLevel: number;
@@ -46,10 +49,12 @@ interface GameState {
   incScore: (val: number) => void;
   damageEnemy: (id: number, amount: number) => void;
   removeEnemy: (id: number) => void;
-  spawnEnemies: () => void;
+  spawnEnemies: (playerPos?: [number, number, number]) => void;
   addExplosion: (position: [number, number, number], color: string, type?: ExplosionType) => void;
   removeExplosion: (id: number) => void;
   setPaused: (val: boolean) => void;
+  setGamePhase: (phase: GamePhase) => void;
+  startGame: () => void;
   damagePlayer: (amount: number) => void;
   resetGame: () => void;
   buyWeaponUpgrade: (weapon: WeaponType, cost: number) => boolean;
@@ -60,16 +65,17 @@ interface GameState {
 }
 
 const INITIAL_ENEMIES: EnemyData[] = [
-  { id: nextId(), position: [0, 4, -10], type: 'swarmer', health: 1, maxHealth: 1 },
-  { id: nextId(), position: [5, 3, -15], type: 'juggernaut', health: 5, maxHealth: 5 },
-  { id: nextId(), position: [-5, 5, -12], type: 'swarmer', health: 1, maxHealth: 1 },
-  { id: nextId(), position: [8, 4, -8], type: 'bomber', health: 2, maxHealth: 2 },
-  { id: nextId(), position: [-8, 3, -8], type: 'swarmer', health: 1, maxHealth: 1 },
+  { id: nextId(), position: [0, 4, -30], type: 'swarmer', health: 1, maxHealth: 1 },
+  { id: nextId(), position: [20, 3, -35], type: 'juggernaut', health: 5, maxHealth: 5 },
+  { id: nextId(), position: [-18, 5, -28], type: 'swarmer', health: 1, maxHealth: 1 },
+  { id: nextId(), position: [25, 4, -20], type: 'bomber', health: 2, maxHealth: 2 },
+  { id: nextId(), position: [-22, 3, -25], type: 'swarmer', health: 1, maxHealth: 1 },
 ];
 
-const PLAYER_MAX_HEALTH = 100;
+const PLAYER_MAX_HEALTH = 200;
 
 export const useStore = create<GameState>((set) => ({
+  gamePhase: 'menu' as GamePhase,
   score: 0,
   level: 1,
   killsThisLevel: 0,
@@ -94,24 +100,45 @@ export const useStore = create<GameState>((set) => ({
   },
   incScore: (val) => set((state) => ({ score: state.score + val })),
   setPaused: (val) => set({ isPaused: val }),
+  setGamePhase: (phase) => set({ gamePhase: phase, isPaused: phase !== 'playing', isGameOver: phase === 'gameover' }),
+  startGame: () => set({
+    gamePhase: 'playing' as GamePhase,
+    isPaused: false,
+    isGameOver: false,
+    score: 0,
+    level: 1,
+    killsThisLevel: 0,
+    totalKills: 0,
+    playerHealth: PLAYER_MAX_HEALTH,
+    playerMaxHealth: PLAYER_MAX_HEALTH,
+    equippedWeapon: 'plasmacaster' as WeaponType,
+    weaponLevels: { plasmacaster: 1, shrapnel: 0, bio: 0, nuke: 0 },
+    enemies: [
+      { id: nextId(), position: [0, 4, -30] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
+      { id: nextId(), position: [20, 3, -35] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
+      { id: nextId(), position: [-18, 5, -28] as [number,number,number], type: 'swarmer' as EnemyType, health: 1, maxHealth: 1 },
+    ],
+    explosions: [],
+  }),
 
   damagePlayer: (amount) => set((state) => {
     const newHealth = Math.max(0, state.playerHealth - amount);
     if (newHealth <= 0) {
-      return { playerHealth: 0, isGameOver: true, isPaused: true };
+      return { playerHealth: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
     }
     return { playerHealth: newHealth };
   }),
 
   resetGame: () => set({
+    gamePhase: 'menu' as GamePhase,
     score: 0,
     level: 1,
     killsThisLevel: 0,
     totalKills: 0,
     enemies: [
-      { id: nextId(), position: [0, 4, -10], type: 'swarmer', health: 1, maxHealth: 1 },
-      { id: nextId(), position: [5, 3, -15], type: 'swarmer', health: 1, maxHealth: 1 },
-      { id: nextId(), position: [-5, 5, -12], type: 'swarmer', health: 1, maxHealth: 1 },
+      { id: nextId(), position: [0, 4, -30], type: 'swarmer', health: 1, maxHealth: 1 },
+      { id: nextId(), position: [20, 3, -35], type: 'swarmer', health: 1, maxHealth: 1 },
+      { id: nextId(), position: [-18, 5, -28], type: 'swarmer', health: 1, maxHealth: 1 },
     ],
     explosions: [],
     isPaused: true,
@@ -185,9 +212,9 @@ export const useStore = create<GameState>((set) => ({
     }
     return { enemies: newEnemies };
   }),
-  spawnEnemies: () => set((state) => {
-    const maxEnemies = 10 + state.level * 5;
-    if (state.enemies.length > maxEnemies) return state;
+  spawnEnemies: (playerPos) => set((state) => {
+    const maxEnemies = 5 + state.level * 3;
+    if (state.enemies.length >= maxEnemies) return state;
     
     const types: EnemyType[] = ['swarmer', 'swarmer', 'swarmer'];
     if (state.level > 2) types.push('bomber', 'bomber');
@@ -199,20 +226,20 @@ export const useStore = create<GameState>((set) => ({
     const baseHealth = type === 'juggernaut' ? 5 : type === 'bomber' ? 2 : 1;
     const maxHealth = Math.floor(baseHealth * healthMultiplier);
 
-    // Spawn within 30-45 units from origin (inside fog range, outside immediate view)
+    // Spawn 35-50 units from the PLAYER (not origin), clamped to arena bounds
+    const cx = playerPos ? playerPos[0] : 0;
+    const cz = playerPos ? playerPos[2] : 0;
     const angle = Math.random() * Math.PI * 2;
-    const dist = 30 + Math.random() * 15;
+    const dist = 35 + Math.random() * 15;
+    const x = Math.max(-48, Math.min(48, cx + Math.cos(angle) * dist));
+    const z = Math.max(-48, Math.min(48, cz + Math.sin(angle) * dist));
 
     return {
       enemies: [
         ...state.enemies,
         {
           id: nextId(),
-          position: [
-            Math.cos(angle) * dist,
-            Math.random() * 10 + 2,
-            Math.sin(angle) * dist,
-          ],
+          position: [x, Math.random() * 10 + 2, z],
           type,
           health: maxHealth,
           maxHealth

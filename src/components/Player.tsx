@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import * as THREE from "three";
 import { useStore } from "@/store";
 
-const SPEED = 6;
-const SPRINT_MULTIPLIER = 1.6;
-const JUMP_FORCE = 6;
+const SPEED = 12;
+const SPRINT_MULTIPLIER = 1.8;
+const JUMP_FORCE = 8;
 const GROUND_RAY_LENGTH = 1.3; // Slightly longer than capsule half-height + radius
 
 const useKeyControls = () => {

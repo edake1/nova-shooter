@@ -147,7 +147,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, resetGame } = useStore();
+  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, resetGame, gamePhase, startGame, setGamePhase } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -159,7 +159,7 @@ export default function Game() {
   const [damageFlash, setDamageFlash] = useState(0);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasmacaster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasmacaster).color;
-  const showGameplayReticle = hasPointerLock || !isPaused;
+  const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
 
   // Player damage flash
   useEffect(() => {
@@ -181,7 +181,18 @@ export default function Game() {
     const handlePointerLockChange = () => {
       const activeLock = Boolean(document.pointerLockElement);
       setHasPointerLock(activeLock);
-      setPaused(!activeLock);
+      const phase = useStore.getState().gamePhase;
+      // Only allow pointer lock transitions during playing/paused
+      if (phase === 'playing' || phase === 'paused') {
+        if (activeLock) {
+          setGamePhase('playing');
+        } else {
+          setGamePhase('paused');
+        }
+      } else if (activeLock) {
+        // Pointer lock acquired during menu/gameover — force exit
+        document.exitPointerLock();
+      }
     };
 
     document.addEventListener("pointerlockchange", handlePointerLockChange);
@@ -190,25 +201,25 @@ export default function Game() {
     return () => {
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
     };
-  }, [setPaused]);
+  }, [setPaused, setGamePhase]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
         e.preventDefault();
+        const phase = useStore.getState().gamePhase;
+        if (phase !== 'playing' && phase !== 'paused') return;
         if (document.pointerLockElement) {
           document.exitPointerLock();
         } else {
           const target = document.getElementById("game-root") ?? document.body;
-          target.requestPointerLock().catch(err => {
-            console.warn("Could not lock pointer on Tab, might need a click:", err);
-          });
+          target.requestPointerLock().catch(() => {});
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setPaused]);
+  }, []);
 
   useEffect(() => {
     const handleShotPulse = (e: MouseEvent) => {
@@ -267,99 +278,75 @@ export default function Game() {
     return () => window.clearInterval(interval);
   }, []);
 
+  const handleStartGame = useCallback(() => {
+    startGame();
+    setTimeout(() => {
+      const target = document.getElementById("game-root") ?? document.body;
+      target.requestPointerLock().catch(() => {});
+    }, 100);
+  }, [startGame]);
+
+  const handlePlayAgain = useCallback(() => {
+    startGame();
+    setTimeout(() => {
+      const target = document.getElementById("game-root") ?? document.body;
+      target.requestPointerLock().catch(() => {});
+    }, 100);
+  }, [startGame]);
+
+  const handleMainMenu = useCallback(() => {
+    resetGame();
+    if (document.pointerLockElement) document.exitPointerLock();
+  }, [resetGame]);
+
   return (
     <main id="game-root" className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
-      <Canvas shadows camera={{ fov: 75 }} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 }}>
-        {/* Environment Settings */}
+      <Canvas shadows camera={{ fov: 75 }} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: gamePhase === 'playing' ? 'auto' : 'none' }}>
         <color attach="background" args={["#030308"]} />
-        <fog attach="fog" args={["#030308", 5, 40]} />
+        <fog attach="fog" args={["#030308", 5, 60]} />
         <ambientLight intensity={0.2} />
         <directionalLight castShadow position={[10, 20, 10]} intensity={1.5} color="#4455ff" />
         <pointLight position={[-10, -10, -10]} intensity={2} color="#ff0044" />
 
         <Suspense fallback={null}>
           <Physics debug={false}>
-            {/* Player & Weapon */}
             <Player />
             <Weapon />
-            
-            {/* Enemies */}
             <Enemies />
-
-            {/* True GPU Particles */}
             <GPUParticles />
 
-            {/* Giant Monolith Obstacles */}
             <RigidBody type="fixed" position={[0, 4, -15]} colliders="cuboid">
-              <mesh castShadow receiveShadow>
-                <boxGeometry args={[4, 10, 4]} />
-                <meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} />
-              </mesh>
+              <mesh castShadow receiveShadow><boxGeometry args={[4, 10, 4]} /><meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} /></mesh>
             </RigidBody>
             <RigidBody type="fixed" position={[12, 3, -5]} colliders="cuboid">
-              <mesh castShadow receiveShadow>
-                <boxGeometry args={[3, 6, 3]} />
-                <meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} />
-              </mesh>
+              <mesh castShadow receiveShadow><boxGeometry args={[3, 6, 3]} /><meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} /></mesh>
             </RigidBody>
 
-            {/* Highly Reflective Mirror Floor */}
             <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
               <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
                 <planeGeometry args={[200, 200]} />
-                <MeshReflectorMaterial
-                  blur={[200, 80]}
-                  resolution={512}
-                  mixBlur={1}
-                  mixStrength={35}
-                  roughness={1}
-                  depthScale={1.2}
-                  minDepthThreshold={0.4}
-                  maxDepthThreshold={1.4}
-                  color="#151520"
-                  metalness={0.5}
-                  mirror={0.8}
-                />
+                <MeshReflectorMaterial blur={[200, 80]} resolution={512} mixBlur={1} mixStrength={35} roughness={1} depthScale={1.2} minDepthThreshold={0.4} maxDepthThreshold={1.4} color="#151520" metalness={0.5} mirror={0.8} />
               </mesh>
-              <mesh visible={false}>
-                <boxGeometry args={[200, 1, 200]} />
-              </mesh>
+              <mesh visible={false}><boxGeometry args={[200, 1, 200]} /></mesh>
             </RigidBody>
 
-            {/* Arena Boundary Walls (50 unit radius box) */}
             {[
-              { pos: [50, 10, 0] as const, args: [1, 20, 100] as const, rot: 0 },
-              { pos: [-50, 10, 0] as const, args: [1, 20, 100] as const, rot: 0 },
-              { pos: [0, 10, 50] as const, args: [100, 20, 1] as const, rot: 0 },
-              { pos: [0, 10, -50] as const, args: [100, 20, 1] as const, rot: 0 },
+              { pos: [50, 10, 0] as const, args: [1, 20, 100] as const },
+              { pos: [-50, 10, 0] as const, args: [1, 20, 100] as const },
+              { pos: [0, 10, 50] as const, args: [100, 20, 1] as const },
+              { pos: [0, 10, -50] as const, args: [100, 20, 1] as const },
             ].map((wall, i) => (
               <RigidBody key={`wall-${i}`} type="fixed" colliders="cuboid" position={[wall.pos[0], wall.pos[1], wall.pos[2]]}>
-                <mesh>
-                  <boxGeometry args={wall.args} />
-                  <meshStandardMaterial color="#000" transparent opacity={0.05} emissive="#00ffff" emissiveIntensity={0.3} wireframe />
-                </mesh>
+                <mesh><boxGeometry args={wall.args} /><meshStandardMaterial color="#000" transparent opacity={0.05} emissive="#00ffff" emissiveIntensity={0.3} wireframe /></mesh>
               </RigidBody>
             ))}
           </Physics>
 
-          {/* Environment Global Illumination Map */}
           <Environment preset="night" />
-
-          {/* Neon Grid overlaying the floor */}
-          <Grid 
-            position={[0, 0.01, 0]} 
-            args={[200, 200]} 
-            cellColor="#00ffff" 
-            sectionColor="#ff00ff" 
-            cellThickness={0.5}
-            sectionThickness={1.0}
-            fadeDistance={40} 
-          />
-
+          <Grid position={[0, 0.01, 0]} args={[200, 200]} cellColor="#00ffff" sectionColor="#ff00ff" cellThickness={0.5} sectionThickness={1.0} fadeDistance={40} />
           <Stars radius={50} depth={50} count={3000} factor={2} fade speed={0.5} />
         </Suspense>
 
-        {/* Post-Processing Pipeline! The 2026 Tech */}
         <EffectComposer>
           <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
           <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(0.002, 0.002)} />
@@ -367,14 +354,10 @@ export default function Game() {
           <Noise opacity={0.03} />
         </EffectComposer>
 
-        <PointerLockControls 
-          selector="#game-root"
-          onLock={() => setPaused(false)} 
-          onUnlock={() => setPaused(true)} 
-        />
+        <PointerLockControls />
       </Canvas>
 
-      {/* Alive weapon-specific reticle */}
+      {/* ===== RETICLE (only during active gameplay) ===== */}
       {showGameplayReticle && (
         <div className="fixed inset-0 pointer-events-none z-[120]">
           <div className={`combat-reticle ${hudSettings.reducedMotion ? "reticle-reduced-motion" : ""}`}
@@ -385,15 +368,10 @@ export default function Game() {
           >
             <WeaponReticle weapon={equippedWeapon} bloom={reticleBloom} pulse={reticlePulse} />
             <div className="combat-reticle-label" style={{ color: `${reticleColor}cc` }}>{reticleLabel}</div>
-
             {hitMarker && (
-              <div className={`hit-marker ${hitMarker === "kill" ? "hit-marker-kill" : ""}`}>
-                <span />
-                <span />
-              </div>
+              <div className={`hit-marker ${hitMarker === "kill" ? "hit-marker-kill" : ""}`}><span /><span /></div>
             )}
           </div>
-
           <div className="incoming-indicators">
             <div className="incoming-arrow incoming-front" style={{ opacity: incoming.front }} />
             <div className="incoming-arrow incoming-right" style={{ opacity: incoming.right }} />
@@ -403,116 +381,111 @@ export default function Game() {
         </div>
       )}
 
-
-      {/* Cyberpunk HUD Overlay (Client-only to avoid hydration mismatch) */}
-      {!isPaused && (
-        <div className="absolute inset-0 pointer-events-none z-10 transition-opacity duration-300">
-          
-          <div className="absolute top-8 left-8 pointer-events-none flex flex-col gap-4">
-            {/* God Tier Labels & Glassmorphism */}
-            <div className="glass-panel p-6 w-80">
-              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-5xl tracking-tighter italic glass-text">
-                NOVA
-              </h1>
-              <h2 className="text-xl font-bold tracking-[0.3em] text-cyan-500 mt-1">SYSTEM ONLINE</h2>
-              
-              <div className="mt-6 border-t border-cyan-500/30 pt-4 flex flex-col gap-3">
-                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
-                    <span className="text-yellow-400/70 font-mono text-xs uppercase flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping"></span>
-                      Level <AliveText value={level} animate={true} />
-                    </span>
-                    <span className="text-yellow-400 font-mono font-bold tracking-widest"><AliveText value={killsThisLevel} /> / {levelTarget} KILLS</span>
-                 </div>
-                  <div className="h-2 rounded-full border border-cyan-400/20 bg-black/50 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-300 transition-all duration-500" style={{ width: `${levelProgress}%` }} />
-                  </div>
-                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 transition-colors">
-                    <span className="text-cyan-400/70 font-mono text-xs uppercase flex items-center gap-2">
-                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                       Target Intel
-                    </span>
-                    <span className="text-cyan-300 font-mono font-bold tracking-widest"><AliveText value={score.toString().padStart(4, '0')} animate={true} suffix=" PTS" /></span>
-                 </div>
-                 
-                 <div className="flex justify-between items-center bg-black/40 p-3 rounded-lg border border-purple-500/10">
-                    <span className="text-purple-400/70 font-mono text-xs uppercase flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-                      Threat Level
-                    </span>
-                    <span className="text-purple-400 font-mono font-bold animate-pulse glass-text-secondary"><AliveText value="CRITICAL" animate={true} /></span>
-                 </div>
-
-                 {/* Player Health Bar */}
-                 <div className="bg-black/40 p-3 rounded-lg border border-red-500/20">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-red-400/70 font-mono text-xs uppercase flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${healthPercent > 30 ? 'bg-red-400' : 'bg-red-500 animate-ping'}`}></span>
-                        Hull Integrity
-                      </span>
-                      <span className={`font-mono font-bold tracking-widest ${healthPercent > 60 ? 'text-emerald-400' : healthPercent > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
-                        {playerHealth} / {playerMaxHealth}
-                      </span>
-                    </div>
-                    <div className="h-3 rounded-full border border-red-400/20 bg-black/50 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-300 ${healthPercent > 60 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : healthPercent > 30 ? 'bg-gradient-to-r from-yellow-500 to-yellow-300' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
-                        style={{ width: `${healthPercent}%` }} 
-                      />
-                    </div>
-                 </div>
+      {/* ===== HUD (only during active gameplay) ===== */}
+      {gamePhase === 'playing' && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Top-left stats */}
+          <div className="absolute top-4 left-4 flex flex-col gap-2">
+            <div className="glass-panel p-4 w-72">
+              <div className="flex items-center justify-between">
+                <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-2xl tracking-tighter italic glass-text">NOVA</h1>
+                <span className="text-cyan-500 font-mono text-xs tracking-widest">LVL {level}</span>
               </div>
-              
-              <div className="mt-4 text-cyan-400/50 font-mono text-[10px] tracking-widest uppercase">
-                SYS.OP: W A S D / SPACE / CLICK
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-xs font-mono">
+                  <span className="text-yellow-400/80 uppercase">Kills {killsThisLevel}/{levelTarget}</span>
+                  <span className="text-cyan-300 font-bold">{score.toString().padStart(5, '0')} PTS</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-black/50 overflow-hidden border border-cyan-400/20">
+                  <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-300 transition-all duration-300" style={{ width: `${levelProgress}%` }} />
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="absolute top-8 right-8 pointer-events-auto">
-            <button 
-              onClick={() => {
-                if (isPaused) {
-                  if (!document.pointerLockElement) {
-                      const target = document.getElementById("game-root") ?? document.body;
-                    target.requestPointerLock();
-                  }
-                } else {
-                  if (document.pointerLockElement) {
-                    document.exitPointerLock();
-                  }
-                }
-              }}
-              className="glass-panel px-6 py-3 border border-cyan-500/50 text-cyan-400 font-orbitron font-bold tracking-widest text-sm hover:bg-cyan-500/20 transition-colors uppercase cursor-pointer"
-            >
-              {isPaused ? "▶ RESUME" : "⏸ MENU (ESC)"}
-            </button>
+
+          {/* Bottom-left health bar */}
+          <div className="absolute bottom-4 left-4 w-72">
+            <div className="glass-panel p-3">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-red-400/80 font-mono text-xs uppercase">Hull Integrity</span>
+                <span className={`font-mono font-bold text-sm ${healthPercent > 60 ? 'text-emerald-400' : healthPercent > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {playerHealth}/{playerMaxHealth}
+                </span>
+              </div>
+              <div className="h-3 rounded-full bg-black/50 overflow-hidden border border-red-400/20">
+                <div className={`h-full transition-all duration-300 ${healthPercent > 60 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : healthPercent > 30 ? 'bg-gradient-to-r from-yellow-500 to-yellow-300' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
+                  style={{ width: `${healthPercent}%` }} />
+              </div>
+            </div>
           </div>
-          
-          <div className="absolute bottom-8 right-8 pointer-events-none">
-             <div className="text-cyan-400 font-mono text-xs tracking-widest text-right uppercase">Weapon // {equippedWeapon}</div>
-             <div className="text-white font-black text-3xl italic tracking-tighter text-right">LVL: {weaponLevels[equippedWeapon]}</div>
-             <div className="text-cyan-300/70 font-mono text-[10px] tracking-[0.2em] text-right uppercase mt-1">STATUS: HOT</div>
+
+          {/* Bottom-right weapon info */}
+          <div className="absolute bottom-4 right-4">
+            <div className="glass-panel p-3 text-right">
+              <div className="text-cyan-400 font-mono text-xs tracking-widest uppercase">{equippedWeapon}</div>
+              <div className="text-white font-black text-xl italic tracking-tighter">LVL {weaponLevels[equippedWeapon]}</div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Damage flash vignette */}
+      {/* ===== DAMAGE FLASH ===== */}
       {damageFlash > 0 && (
-        <div 
-          className="fixed inset-0 pointer-events-none z-[90]"
+        <div className="fixed inset-0 pointer-events-none z-[90]"
           style={{
             background: `radial-gradient(ellipse at center, transparent 40%, rgba(255, 0, 0, ${damageFlash * 0.5}) 100%)`,
             boxShadow: `inset 0 0 80px rgba(255, 0, 0, ${damageFlash * 0.4})`,
-          }}
-        />
+          }} />
       )}
 
-      {/* Game Over Screen */}
-      {isGameOver && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-lg">
-          <div className="glass-panel p-10 text-center max-w-lg border-red-500/50 shadow-[0_0_80px_rgba(255,0,0,0.3)]">
-            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400 font-black text-6xl tracking-tighter italic" style={{ textShadow: '0 0 30px rgba(255,60,60,0.6)' }}>
+      {/* ===== HOME SCREEN ===== */}
+      {gamePhase === 'menu' && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center cursor-default"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative z-10 flex flex-col items-center gap-6 text-center px-4">
+            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-7xl md:text-8xl tracking-tighter italic"
+              style={{ textShadow: '0 0 60px rgba(0,255,255,0.4)' }}>
+              NOVA
+            </h1>
+            <p className="text-cyan-400/80 font-mono text-sm md:text-base tracking-[0.5em] uppercase">Cyberpunk Arena Shooter</p>
+            
+            <div className="mt-8 flex flex-col gap-4 items-center">
+              <button onClick={handleStartGame}
+                className="px-12 py-4 rounded-xl border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-black tracking-[0.3em] text-lg hover:bg-cyan-400/40 hover:border-cyan-300 hover:scale-105 transition-all uppercase cursor-pointer shadow-[0_0_30px_rgba(34,211,238,0.3)]">
+                START SIMULATION
+              </button>
+              <p className="text-cyan-400/50 font-mono text-xs tracking-widest uppercase mt-2">WASD Move &bull; Mouse Aim &bull; Click Shoot</p>
+            </div>
+
+            <div className="mt-12 flex gap-8 text-center">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Weapons</span>
+                <span className="text-white font-bold text-lg">4 Types</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Enemies</span>
+                <span className="text-white font-bold text-lg">3 Classes</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Levels</span>
+                <span className="text-white font-bold text-lg">10 Waves</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== GAME OVER SCREEN ===== */}
+      {gamePhase === 'gameover' && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center cursor-default"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-lg" />
+          <div className="relative z-10 glass-panel p-10 text-center max-w-lg border-red-500/50 shadow-[0_0_80px_rgba(255,0,0,0.3)]">
+            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400 font-black text-6xl tracking-tighter italic"
+              style={{ textShadow: '0 0 30px rgba(255,60,60,0.6)' }}>
               TERMINATED
             </h1>
             <p className="text-red-300 font-mono text-base tracking-[0.3em] mt-3 uppercase font-bold">Hull integrity compromised</p>
@@ -528,24 +501,22 @@ export default function Game() {
               </div>
             </div>
             
-            <button
-              onClick={() => {
-                resetGame();
-                setTimeout(() => {
-                  const target = document.getElementById("game-root") ?? document.body;
-                  target.requestPointerLock();
-                }, 100);
-              }}
-              className="mt-8 px-10 py-4 rounded-xl border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-black tracking-[0.3em] text-lg hover:bg-cyan-400/40 hover:border-cyan-300 transition-all uppercase cursor-pointer shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-            >
-              REINITIALIZE
-            </button>
-            <p className="text-cyan-300/70 font-mono text-sm tracking-widest mt-4 uppercase">Click to restart simulation</p>
+            <div className="mt-8 flex flex-col gap-3">
+              <button onClick={handlePlayAgain}
+                className="w-full px-8 py-4 rounded-xl border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-black tracking-[0.3em] text-lg hover:bg-cyan-400/40 hover:border-cyan-300 transition-all uppercase cursor-pointer shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+                PLAY AGAIN
+              </button>
+              <button onClick={handleMainMenu}
+                className="w-full px-8 py-3 rounded-xl border border-slate-500/50 bg-slate-800/30 text-slate-300 font-orbitron font-bold tracking-[0.2em] text-sm hover:bg-slate-700/40 hover:text-white transition-all uppercase cursor-pointer">
+                MAIN MENU
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {isPaused && !isGameOver && <PauseMenu />}
+      {/* ===== PAUSE MENU ===== */}
+      {gamePhase === 'paused' && <PauseMenu />}
     </main>
   );
 }

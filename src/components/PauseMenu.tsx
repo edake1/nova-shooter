@@ -57,7 +57,7 @@ function accentClasses(accent: string) {
 
 export function PauseMenu() {
   const {
-    isPaused, score, level, killsThisLevel, totalKills,
+    gamePhase, score, level, killsThisLevel, totalKills,
     equippedWeapon, weaponLevels, hudSettings,
     buyWeaponUpgrade, equipWeapon,
     cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion,
@@ -65,7 +65,6 @@ export function PauseMenu() {
 
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
   const [statusLine, setStatusLine] = useState("SYSTEMS NOMINAL");
-  const [cursor, setCursor] = useState({ x: -100, y: -100 });
 
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
@@ -78,7 +77,7 @@ export function PauseMenu() {
   }), [equippedWeapon, score, weaponLevels]);
 
   useEffect(() => {
-    if (!isPaused) return;
+    if (gamePhase !== 'paused') return;
     const handle = (e: KeyboardEvent) => {
       if (e.code === "F1") { e.preventDefault(); setActiveTab("arsenal"); playUiSound(UI_SFX.equip, 0.2); return; }
       if (e.code === "F2") { e.preventDefault(); setActiveTab("telemetry"); playUiSound(UI_SFX.equip, 0.2); return; }
@@ -115,21 +114,18 @@ export function PauseMenu() {
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [isPaused, cards, equippedWeapon, buyWeaponUpgrade, equipWeapon, cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion]);
+  }, [gamePhase, cards, equippedWeapon, buyWeaponUpgrade, equipWeapon, cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion]);
 
-  if (!isPaused) return null;
+  if (gamePhase !== 'paused') return null;
 
   return (
     <div
-      className="absolute inset-0 z-[100] flex items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.22),transparent_40%),radial-gradient(circle_at_78%_18%,rgba(244,114,182,0.18),transparent_36%),radial-gradient(circle_at_50%_120%,rgba(16,185,129,0.16),transparent_45%),rgba(3,6,18,0.84)] backdrop-blur-md cursor-none"
-      onMouseMove={(e) => setCursor({ x: e.clientX, y: e.clientY })}
-      onClick={() => { if (!document.pointerLockElement) { (document.getElementById("game-root") ?? document.body).requestPointerLock(); } }}
+      className="absolute inset-0 z-[100] flex items-center justify-center bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.22),transparent_40%),radial-gradient(circle_at_78%_18%,rgba(244,114,182,0.18),transparent_36%),radial-gradient(circle_at_50%_120%,rgba(16,185,129,0.16),transparent_45%),rgba(3,6,18,0.84)] backdrop-blur-md cursor-default"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
-      <div className="menu-cursor" style={{ left: cursor.x, top: cursor.y }}><span className="menu-cursor-dot" /></div>
 
-      <div className="glass-panel tactical-shell tactical-stars tactical-scan w-[min(96vw,1320px)] max-h-[90vh] overflow-y-auto p-6 md:p-8 flex flex-col gap-5 animate-in fade-in zoom-in duration-300 border-cyan-300/40 shadow-[0_0_40px_rgba(34,211,238,0.14),0_40px_80px_rgba(0,0,0,0.55)]"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="glass-panel tactical-shell tactical-stars tactical-scan w-[min(96vw,1320px)] max-h-[90vh] overflow-y-auto p-6 md:p-8 flex flex-col gap-5 border-cyan-300/40 shadow-[0_0_40px_rgba(34,211,238,0.14),0_40px_80px_rgba(0,0,0,0.55)]">
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -298,9 +294,19 @@ export function PauseMenu() {
         </div>
 
         {/* Footer */}
-        <div className="text-center border-t border-cyan-500/30 pt-3">
-          <p className="text-cyan-200 font-mono text-xs tracking-[0.24em] uppercase mb-1 font-bold">Status // {statusLine}</p>
-          <p className="text-cyan-300/70 font-mono text-sm tracking-widest uppercase">Click anywhere or press Enter to resume</p>
+        <div className="flex flex-col items-center gap-3 border-t border-cyan-500/30 pt-4">
+          <p className="text-cyan-200 font-mono text-xs tracking-[0.24em] uppercase font-bold">Status // {statusLine}</p>
+          <button
+            type="button"
+            onClick={() => {
+              const target = document.getElementById("game-root") ?? document.body;
+              target.requestPointerLock();
+            }}
+            className="px-8 py-3 rounded-lg border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-bold tracking-[0.3em] text-sm hover:bg-cyan-400/40 hover:border-cyan-300 transition-all uppercase cursor-pointer shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+          >
+            RESUME
+          </button>
+          <p className="text-cyan-400/50 font-mono text-xs tracking-widest uppercase">or press ESC to toggle</p>
         </div>
       </div>
     </div>

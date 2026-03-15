@@ -8,14 +8,22 @@ import * as THREE from "three";
 export function Enemies() {
   const enemies = useStore((state) => state.enemies);
   const spawnEnemies = useStore((state) => state.spawnEnemies);
+  const cameraRef = useRef(new THREE.Vector3());
 
-  // Adaptive endless spawning
+  // Track camera position every frame
+  useFrame((state) => {
+    cameraRef.current.copy(state.camera.position);
+  });
+
+  // Adaptive endless spawning — relative to player position
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!useStore.getState().isPaused) {
-        spawnEnemies();
+      const s = useStore.getState();
+      if (s.gamePhase === 'playing') {
+        const p = cameraRef.current;
+        spawnEnemies([p.x, p.y, p.z]);
       }
-    }, 3000); // New enemy every 3 seconds
+    }, 4000); // New enemy every 4 seconds
     return () => clearInterval(interval);
   }, [spawnEnemies]);
 
@@ -44,16 +52,16 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
     up: new THREE.Vector3(0, 1, 0),
   }), []);
   
-  // Contact damage per enemy type
-  const contactDamage = enemy.type === 'juggernaut' ? 15 : enemy.type === 'bomber' ? 25 : 8;
-  const contactRange = enemy.type === 'juggernaut' ? 3.5 : enemy.type === 'bomber' ? 2.5 : 2.0;
+  // Contact damage per enemy type (reduced so player has breathing room)
+  const contactDamage = enemy.type === 'juggernaut' ? 10 : enemy.type === 'bomber' ? 15 : 5;
+  const contactRange = enemy.type === 'juggernaut' ? 3.0 : enemy.type === 'bomber' ? 2.0 : 1.5;
   
-  // Set distinct traits based on enemy type
+  // Set distinct traits based on enemy type (slower speeds for fairer gameplay)
   const [traits] = useState(() => {
     switch (enemy.type) {
-      case 'juggernaut': return { speed: 3.5, baseScale: 1.8, rotSpeed: 0.005 };
-      case 'bomber': return { speed: 6.5, baseScale: 0.9, rotSpeed: 0.05 };
-      case 'swarmer': default: return { speed: 5.5 + Math.random() * 2, baseScale: 0.5, rotSpeed: 0.02 };
+      case 'juggernaut': return { speed: 2.5, baseScale: 1.8, rotSpeed: 0.005 };
+      case 'bomber': return { speed: 4.0, baseScale: 0.9, rotSpeed: 0.05 };
+      case 'swarmer': default: return { speed: 3.5 + Math.random() * 1.5, baseScale: 0.5, rotSpeed: 0.02 };
     }
   });
   
@@ -68,7 +76,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const coreIntensity = 8 * intensityMultiplier;
 
   useFrame((state) => {
-    if (useStore.getState().isPaused) return;
+    if (useStore.getState().gamePhase !== 'playing') return;
 
     if (meshRef.current && rigidBodyRef.current) {
       // Rotate the enemy
@@ -101,7 +109,7 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
 
       // Contact damage — hurt player when in melee range (throttled to 1 hit/sec)
       const now = performance.now();
-      if (distanceToPlayer < contactRange && now - lastDamageAtRef.current > 1000) {
+      if (distanceToPlayer < contactRange && now - lastDamageAtRef.current > 2000) {
         lastDamageAtRef.current = now;
         useStore.getState().damagePlayer(contactDamage);
         window.dispatchEvent(new CustomEvent("nova:playerHit", { detail: { damage: contactDamage } }));
