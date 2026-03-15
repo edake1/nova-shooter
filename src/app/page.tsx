@@ -508,35 +508,70 @@ export default function Game() {
         <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center cursor-default"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}>
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          <div className="relative z-10 flex flex-col items-center gap-6 text-center px-4">
-            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-7xl md:text-8xl tracking-tighter italic"
-              style={{ textShadow: '0 0 60px rgba(0,255,255,0.4)' }}>
-              NOVA
-            </h1>
-            <p className="text-cyan-400/80 font-mono text-sm md:text-base tracking-[0.5em] uppercase">Cyberpunk Arena Shooter</p>
+          {/* Animated background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-950 to-black" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,255,0.15) 2px, rgba(0,255,255,0.15) 4px)', animation: 'scan 8s linear infinite' }} />
+          {/* Grid floor fade */}
+          <div className="absolute bottom-0 left-0 right-0 h-1/3 opacity-20" style={{
+            backgroundImage: 'linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,255,0.3) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+            maskImage: 'linear-gradient(to bottom, transparent, black)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black)',
+          }} />
+          
+          <div className="relative z-10 flex flex-col items-center gap-5 text-center px-4">
+            {/* Subtitle above */}
+            <p className="text-cyan-500/50 font-mono text-[10px] tracking-[0.8em] uppercase">SYSTEM v2.1 // COMBAT SIMULATION</p>
             
-            <div className="mt-8 flex flex-col gap-4 items-center">
+            {/* Title */}
+            <div className="relative">
+              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-8xl md:text-9xl tracking-tighter italic leading-none"
+                style={{ textShadow: '0 0 80px rgba(0,255,255,0.3)' }}>
+                NOVA
+              </h1>
+              {/* Glitch double */}
+              <h1 className="absolute inset-0 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500/30 to-cyan-500/30 font-black text-8xl md:text-9xl tracking-tighter italic leading-none pointer-events-none"
+                style={{ transform: 'translate(2px, -1px)', opacity: 0.4 }}>
+                NOVA
+              </h1>
+            </div>
+            <p className="text-cyan-300/70 font-mono text-sm md:text-base tracking-[0.5em] uppercase font-medium">ARENA SHOOTER</p>
+            
+            {/* Divider */}
+            <div className="w-64 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent mt-2" />
+            
+            {/* CTA */}
+            <div className="mt-4 flex flex-col gap-3 items-center">
               <button onClick={handleStartGame}
-                className="px-12 py-4 rounded-xl border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-black tracking-[0.3em] text-lg hover:bg-cyan-400/40 hover:border-cyan-300 hover:scale-105 transition-all uppercase cursor-pointer shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-                START SIMULATION
+                className="group relative px-14 py-4 rounded-lg border border-cyan-400/70 bg-cyan-500/10 text-white font-orbitron font-black tracking-[0.4em] text-base hover:bg-cyan-400/25 hover:border-cyan-300 transition-all uppercase cursor-pointer overflow-hidden">
+                <span className="relative z-10">ENTER</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               </button>
-              <p className="text-cyan-400/50 font-mono text-xs tracking-widest uppercase mt-2">WASD Move &bull; Mouse Aim &bull; Click Shoot</p>
+              <div className="flex gap-4 text-cyan-500/40 font-mono text-[10px] tracking-widest uppercase mt-1">
+                <span>WASD Move</span>
+                <span>&middot;</span>
+                <span>Mouse Aim</span>
+                <span>&middot;</span>
+                <span>Click Shoot</span>
+                <span>&middot;</span>
+                <span>Q Weapon Wheel</span>
+              </div>
             </div>
 
-            <div className="mt-12 flex gap-8 text-center">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Weapons</span>
-                <span className="text-white font-bold text-lg">4 Types</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Enemies</span>
-                <span className="text-white font-bold text-lg">3 Classes</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-cyan-400 font-mono text-xs uppercase tracking-widest">Levels</span>
-                <span className="text-white font-bold text-lg">10 Waves</span>
-              </div>
+            {/* Stats row */}
+            <div className="mt-10 flex gap-6 text-center">
+              {[
+                { label: 'WEAPONS', value: '6', sub: 'CLASSES' },
+                { label: 'ENEMIES', value: '7', sub: 'TYPES' },
+                { label: 'UPGRADES', value: '30', sub: 'TOTAL' },
+                { label: 'WAVES', value: '∞', sub: 'ENDLESS' },
+              ].map((s) => (
+                <div key={s.label} className="flex flex-col items-center gap-0.5 min-w-[70px]">
+                  <span className="text-cyan-500/50 font-mono text-[9px] uppercase tracking-[0.3em]">{s.label}</span>
+                  <span className="text-white font-orbitron font-black text-2xl">{s.value}</span>
+                  <span className="text-cyan-400/30 font-mono text-[9px] uppercase">{s.sub}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

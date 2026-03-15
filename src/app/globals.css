@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@keyframes scan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100vh; }
+}
+
 body {
   margin: 0;
   background-color: #02040a;
