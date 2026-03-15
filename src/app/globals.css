@@ -5,6 +5,42 @@
   100% { background-position: 0 100vh; }
 }
 
+@keyframes gameover-glitch {
+  0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+  10% { clip-path: inset(20% 0 60% 0); transform: translate(-4px, 2px); }
+  20% { clip-path: inset(60% 0 10% 0); transform: translate(3px, -1px); }
+  30% { clip-path: inset(0 0 0 0); transform: translate(0); }
+  42% { clip-path: inset(40% 0 30% 0); transform: translate(5px, 0); }
+  50% { clip-path: inset(0 0 0 0); transform: translate(0); }
+  65% { clip-path: inset(70% 0 5% 0); transform: translate(-3px, 1px); }
+  75% { clip-path: inset(0 0 0 0); transform: translate(0); }
+}
+
+@keyframes gameover-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes gameover-expand {
+  0% { transform: scaleX(0); opacity: 0; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes gameover-fadein {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gameover-particle {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  100% { transform: translateY(-100vh) scale(0); opacity: 0; }
+}
+
+@keyframes gameover-ring {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
 body {
   margin: 0;
   background-color: #02040a;
@@ -36,6 +72,12 @@ body {
 .tactical-shell {
   position: relative;
   overflow: hidden;
+}
+
+/* Prevent text clipping on italic/bold Orbitron headings */
+.tactical-shell h1,
+.tactical-shell h2 {
+  overflow: visible;
 }
 
 .tactical-shell::before {

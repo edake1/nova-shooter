@@ -176,7 +176,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -524,18 +524,18 @@ export default function Game() {
             <p className="text-cyan-500/50 font-mono text-[10px] tracking-[0.8em] uppercase">SYSTEM v2.1 // COMBAT SIMULATION</p>
             
             {/* Title */}
-            <div className="relative">
-              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-8xl md:text-9xl tracking-tighter italic leading-none"
-                style={{ textShadow: '0 0 80px rgba(0,255,255,0.3)' }}>
+            <div className="relative px-4 py-2">
+              <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 font-black text-8xl md:text-9xl tracking-tight italic leading-tight"
+                style={{ filter: 'drop-shadow(0 0 40px rgba(0,255,255,0.3))' }}>
                 NOVA
               </h1>
               {/* Glitch double */}
-              <h1 className="absolute inset-0 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500/30 to-cyan-500/30 font-black text-8xl md:text-9xl tracking-tighter italic leading-none pointer-events-none"
+              <h1 className="absolute inset-0 px-4 py-2 font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500/30 to-cyan-500/30 font-black text-8xl md:text-9xl tracking-tight italic leading-tight pointer-events-none"
                 style={{ transform: 'translate(2px, -1px)', opacity: 0.4 }}>
                 NOVA
               </h1>
             </div>
-            <p className="text-cyan-300/70 font-mono text-sm md:text-base tracking-[0.5em] uppercase font-medium">ARENA SHOOTER</p>
+            <p className="text-cyan-300/70 font-mono text-sm md:text-base tracking-[0.5em] uppercase font-medium mt-1">ARENA SHOOTER</p>
             
             {/* Divider */}
             <div className="w-64 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent mt-2" />
@@ -591,34 +591,109 @@ export default function Game() {
         <div className="fixed inset-0 z-[200] flex items-center justify-center cursor-default"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}>
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-lg" />
-          <div className="relative z-10 glass-panel p-10 text-center max-w-lg border-red-500/50 shadow-[0_0_80px_rgba(255,0,0,0.3)]">
-            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400 font-black text-6xl tracking-tighter italic"
-              style={{ textShadow: '0 0 30px rgba(255,60,60,0.6)' }}>
-              TERMINATED
-            </h1>
-            <p className="text-red-300 font-mono text-base tracking-[0.3em] mt-3 uppercase font-bold">Hull integrity compromised</p>
-            
-            <div className="mt-8 grid grid-cols-2 gap-4">
-              <div className="rounded-lg border border-cyan-400/40 bg-black/60 p-4">
-                <div className="text-cyan-300 font-mono text-xs uppercase tracking-widest font-bold">Final Score</div>
-                <div className="text-white font-mono font-black text-3xl mt-1">{score.toString().padStart(5, '0')}</div>
+
+          {/* Darkened background with red vignette */}
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
+          <div className="absolute inset-0" style={{
+            background: 'radial-gradient(ellipse at center, transparent 20%, rgba(120,0,0,0.25) 60%, rgba(60,0,0,0.5) 100%)',
+          }} />
+
+          {/* Scanlines */}
+          <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,60,60,0.2) 2px, rgba(255,60,60,0.2) 4px)',
+          }} />
+
+          {/* Floating ember particles */}
+          {Array.from({ length: 20 }, (_, i) => (
+            <div key={i} className="absolute rounded-full pointer-events-none" style={{
+              width: 2 + Math.random() * 3,
+              height: 2 + Math.random() * 3,
+              left: `${10 + Math.random() * 80}%`,
+              bottom: '-5%',
+              background: `hsl(${Math.random() * 40}, 100%, ${50 + Math.random() * 30}%)`,
+              animation: `gameover-particle ${4 + Math.random() * 6}s linear ${Math.random() * 3}s infinite`,
+              filter: 'blur(0.5px)',
+            }} />
+          ))}
+
+          {/* Expanding shockwave ring */}
+          <div className="absolute left-1/2 top-[38%] pointer-events-none" style={{
+            width: 300, height: 300,
+            border: '1px solid rgba(255,60,60,0.3)',
+            borderRadius: '50%',
+            animation: 'gameover-ring 4s ease-out infinite',
+          }} />
+          <div className="absolute left-1/2 top-[38%] pointer-events-none" style={{
+            width: 300, height: 300,
+            border: '1px solid rgba(255,120,0,0.2)',
+            borderRadius: '50%',
+            animation: 'gameover-ring 4s ease-out 1.5s infinite',
+          }} />
+
+          {/* Main card */}
+          <div className="relative z-10 glass-panel p-0 text-center w-[min(92vw,520px)] border-red-500/40 shadow-[0_0_120px_rgba(255,30,30,0.2),0_0_60px_rgba(255,60,30,0.15)]"
+            style={{ animation: 'gameover-fadein 0.6s ease-out forwards' }}>
+
+            {/* Red accent line top */}
+            <div className="h-[2px] rounded-t-[20px]" style={{
+              background: 'linear-gradient(90deg, transparent, #ff3333, #ff6600, #ff3333, transparent)',
+              animation: 'gameover-expand 0.8s ease-out forwards',
+            }} />
+
+            <div className="px-8 pt-8 pb-10">
+              {/* Title with glitch */}
+              <div className="relative inline-block pb-1">
+                <h1 className="font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-orange-400 to-red-500 font-black text-5xl md:text-6xl tracking-tight italic leading-tight px-2"
+                  style={{ filter: 'drop-shadow(0 0 20px rgba(255,60,60,0.5))' }}>
+                  TERMINATED
+                </h1>
+                {/* Glitch layer */}
+                <h1 className="absolute inset-0 font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-cyan-500/50 to-red-500/50 font-black text-5xl md:text-6xl tracking-tight italic leading-tight px-2 pointer-events-none"
+                  style={{ animation: 'gameover-glitch 3s steps(1) infinite' }}>
+                  TERMINATED
+                </h1>
               </div>
-              <div className="rounded-lg border border-cyan-400/40 bg-black/60 p-4">
-                <div className="text-cyan-300 font-mono text-xs uppercase tracking-widest font-bold">Level Reached</div>
-                <div className="text-white font-mono font-black text-3xl mt-1">{level}</div>
+
+              <p className="text-red-300/80 font-mono text-sm tracking-[0.4em] mt-2 uppercase font-bold"
+                style={{ animation: 'gameover-fadein 0.8s ease-out 0.3s both' }}>
+                Hull integrity compromised
+              </p>
+
+              {/* Divider */}
+              <div className="mt-6 mb-6 h-px mx-auto w-3/4" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(255,60,60,0.4), transparent)',
+                animation: 'gameover-expand 1s ease-out 0.5s both',
+              }} />
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.5s both' }}>
+                <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
+                  <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Score</div>
+                  <div className="text-white font-mono font-black text-2xl mt-1">{score.toString().padStart(5, '0')}</div>
+                </div>
+                <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
+                  <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Level</div>
+                  <div className="text-white font-mono font-black text-2xl mt-1">{level}</div>
+                </div>
+                <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
+                  <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Kills</div>
+                  <div className="text-white font-mono font-black text-2xl mt-1">{totalKills}</div>
+                </div>
               </div>
-            </div>
             
-            <div className="mt-8 flex flex-col gap-3">
-              <button onClick={handlePlayAgain}
-                className="w-full px-8 py-4 rounded-xl border-2 border-cyan-400 bg-cyan-500/20 text-white font-orbitron font-black tracking-[0.3em] text-lg hover:bg-cyan-400/40 hover:border-cyan-300 transition-all uppercase cursor-pointer shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-                PLAY AGAIN
-              </button>
-              <button onClick={handleMainMenu}
-                className="w-full px-8 py-3 rounded-xl border border-slate-500/50 bg-slate-800/30 text-slate-300 font-orbitron font-bold tracking-[0.2em] text-sm hover:bg-slate-700/40 hover:text-white transition-all uppercase cursor-pointer">
-                MAIN MENU
-              </button>
+              {/* Buttons */}
+              <div className="mt-8 flex flex-col gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.7s both' }}>
+                <button onClick={handlePlayAgain}
+                  className="group relative w-full px-8 py-4 rounded-xl border border-cyan-400/60 bg-cyan-500/10 text-white font-orbitron font-black tracking-[0.3em] text-base hover:bg-cyan-400/25 hover:border-cyan-300 transition-all uppercase cursor-pointer overflow-hidden shadow-[0_0_30px_rgba(34,211,238,0.15)]"
+                  style={{ animation: 'gameover-pulse 2s ease-in-out infinite' }}>
+                  <span className="relative z-10">PLAY AGAIN</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                </button>
+                <button onClick={handleMainMenu}
+                  className="w-full px-8 py-3 rounded-xl border border-slate-500/30 bg-slate-900/30 text-slate-400 font-orbitron font-bold tracking-[0.2em] text-sm hover:bg-slate-800/40 hover:text-slate-200 hover:border-slate-400/50 transition-all uppercase cursor-pointer">
+                  MAIN MENU
+                </button>
+              </div>
             </div>
           </div>
         </div>

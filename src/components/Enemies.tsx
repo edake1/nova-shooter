@@ -280,16 +280,16 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
     }
   });
 
-  // Geometry based on type
-  const geometry = useMemo(() => {
+  // Core size proportional to body (no oversized sphere)
+  const coreRadius = useMemo(() => {
     switch (enemy.type) {
-      case 'juggernaut': return <octahedronGeometry args={[1.5, 0]} />;
-      case 'bomber': return <dodecahedronGeometry args={[1.5, 0]} />;
-      case 'spitter': return <coneGeometry args={[1.0, 2.5, 6]} />;
-      case 'charger': return <coneGeometry args={[1.2, 2.0, 4]} />;
-      case 'shielder': return <sphereGeometry args={[1.3, 8, 8]} />;
-      case 'phantom': return <tetrahedronGeometry args={[1.4, 0]} />;
-      default: return <icosahedronGeometry args={[1.5, 0]} />;
+      case 'juggernaut': return 0.5;
+      case 'bomber': return 0.4;
+      case 'spitter': return 0.3;
+      case 'charger': return 0.35;
+      case 'shielder': return 0.35;
+      case 'phantom': return 0.25;
+      default: return 0.35; // swarmer
     }
   }, [enemy.type]);
 
@@ -297,36 +297,92 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
     <RigidBody ref={rigidBodyRef} position={enemy.position} type="dynamic" colliders="ball" mass={enemy.type === 'juggernaut' ? 10 : 1} linearDamping={2}>
       <group scale={[currentScale, currentScale, currentScale]}>
         <mesh ref={meshRef} userData={{ isEnemy: true, id: enemy.id }} castShadow receiveShadow>
-          {geometry}
-          <meshStandardMaterial 
-            color="#111" 
-            emissive={traits.emissive} 
-            emissiveIntensity={wireframeIntensity} 
-            roughness={0.2} 
-            metalness={1.0} 
+          {/* Type-specific geometry */}
+          {enemy.type === 'swarmer' && <icosahedronGeometry args={[1.2, 0]} />}
+          {enemy.type === 'juggernaut' && <octahedronGeometry args={[1.5, 1]} />}
+          {enemy.type === 'bomber' && <dodecahedronGeometry args={[1.3, 0]} />}
+          {enemy.type === 'spitter' && <torusKnotGeometry args={[0.7, 0.25, 64, 8, 2, 3]} />}
+          {enemy.type === 'charger' && <boxGeometry args={[1.6, 0.8, 2.4]} />}
+          {enemy.type === 'shielder' && <icosahedronGeometry args={[1.2, 1]} />}
+          {enemy.type === 'phantom' && <octahedronGeometry args={[1.1, 0]} />}
+          <meshStandardMaterial
+            color="#0a0a0a"
+            emissive={traits.emissive}
+            emissiveIntensity={wireframeIntensity}
+            roughness={0.15}
+            metalness={0.9}
             wireframe={traits.wireframe}
             transparent={enemy.type === 'phantom'}
             opacity={phantomOpacity}
           />
         </mesh>
-        
-        {/* Inner glowing core */}
+
+        {/* Inner glowing core — proportional */}
         <mesh>
-           <sphereGeometry args={[0.8, 8, 8]} />
+           <sphereGeometry args={[coreRadius, 10, 10]} />
            <meshStandardMaterial 
              color="#000" 
              emissive={traits.core} 
              emissiveIntensity={coreIntensity}
+             toneMapped={false}
              transparent={enemy.type === 'phantom'}
              opacity={enemy.type === 'phantom' ? phantomOpacity * 0.8 : 1}
            />
         </mesh>
 
-        {/* Shielder: outer shield bubble */}
+        {/* Spitter: orbiting energy rings */}
+        {enemy.type === 'spitter' && (
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[1.1, 0.04, 8, 32]} />
+            <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={6} toneMapped={false} />
+          </mesh>
+        )}
+
+        {/* Charger: forward-facing ram spikes */}
+        {enemy.type === 'charger' && (
+          <>
+            <mesh position={[0, 0, 1.4]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[0.3, 0.8, 4]} />
+              <meshStandardMaterial color="#111" emissive={traits.emissive} emissiveIntensity={5} toneMapped={false} />
+            </mesh>
+            <mesh position={[0.5, 0, 1.1]} rotation={[Math.PI / 2, 0, 0.3]}>
+              <coneGeometry args={[0.15, 0.5, 4]} />
+              <meshStandardMaterial color="#111" emissive={traits.emissive} emissiveIntensity={5} toneMapped={false} />
+            </mesh>
+            <mesh position={[-0.5, 0, 1.1]} rotation={[Math.PI / 2, 0, -0.3]}>
+              <coneGeometry args={[0.15, 0.5, 4]} />
+              <meshStandardMaterial color="#111" emissive={traits.emissive} emissiveIntensity={5} toneMapped={false} />
+            </mesh>
+          </>
+        )}
+
+        {/* Shielder: hexagonal shield plates */}
         {enemy.type === 'shielder' && (
+          <>
+            <mesh>
+              <icosahedronGeometry args={[1.9, 1]} />
+              <meshStandardMaterial color="#001a33" emissive="#0066ff" emissiveIntensity={1.5} transparent opacity={0.08} wireframe />
+            </mesh>
+            <mesh>
+              <icosahedronGeometry args={[2.1, 0]} />
+              <meshStandardMaterial color="#003366" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.12} wireframe />
+            </mesh>
+          </>
+        )}
+
+        {/* Phantom: ghostly outer shell */}
+        {enemy.type === 'phantom' && (
           <mesh>
-            <sphereGeometry args={[2.0, 16, 16]} />
-            <meshStandardMaterial color="#003366" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.15} wireframe />
+            <octahedronGeometry args={[1.6, 0]} />
+            <meshStandardMaterial color="#000" emissive={traits.emissive} emissiveIntensity={2} transparent opacity={phantomOpacity * 0.15} wireframe />
+          </mesh>
+        )}
+
+        {/* Juggernaut: armored plates */}
+        {enemy.type === 'juggernaut' && (
+          <mesh>
+            <octahedronGeometry args={[1.7, 0]} />
+            <meshStandardMaterial color="#0a0a0a" emissive={traits.emissive} emissiveIntensity={1.5} transparent opacity={0.2} wireframe />
           </mesh>
         )}
       </group>

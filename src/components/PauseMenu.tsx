@@ -127,7 +127,7 @@ export function PauseMenu() {
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-white font-black text-4xl tracking-tighter italic glass-text">NOVA COMMAND</h1>
+            <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-white font-black text-4xl tracking-tight italic" style={{ filter: 'drop-shadow(0 0 8px rgba(0,255,255,0.6))' }}>NOVA COMMAND</h1>
             <p className="text-sm font-bold tracking-[0.4em] text-cyan-500 mt-1 uppercase">Control Deck — System Paused</p>
           </div>
           <div className="flex gap-3">
@@ -283,7 +283,7 @@ export function PauseMenu() {
           )}
 
           {activeTab === "settings" && (
-            <div className="max-w-lg space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {/* AUDIO */}
               <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
                 <h3 className="font-orbitron text-cyan-300 text-sm tracking-widest mb-4">AUDIO</h3>
@@ -339,6 +339,7 @@ export function PauseMenu() {
                   ><span>[M] Reduced Motion</span><span className={`font-bold ${hudSettings.reducedMotion ? "text-emerald-400" : "text-slate-500"}`}>{hudSettings.reducedMotion ? "ON" : "OFF"}</span></button>
                 </div>
               </div>
+              {/* HOTKEYS */}
               <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
                 <h3 className="font-orbitron text-cyan-300 text-sm tracking-widest mb-3">MENU HOTKEYS</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 font-mono text-xs">
