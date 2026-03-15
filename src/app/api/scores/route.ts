@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, ensureTable } from '@/lib/db';
 
 export async function GET() {
   try {
+    await ensureTable();
     const sql = getDb();
     const rows = await sql`
-      SELECT username, score, level, kills, max_combo, weapon, created_at
+      SELECT username, score, level, kills, max_combo, weapon, time_played, damage_dealt, created_at
       FROM scores
       ORDER BY score DESC
       LIMIT 100
@@ -19,8 +20,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureTable();
     const body = await req.json();
-    const { username, score, level, kills, maxCombo, weapon } = body;
+    const { username, score, level, kills, maxCombo, weapon, timePlayed, damageDealt } = body;
 
     // Validate inputs
     if (typeof score !== 'number' || score < 0 || score > 99999999) {
@@ -36,11 +38,13 @@ export async function POST(req: NextRequest) {
     const sanitizedName = String(username || 'ANON').replace(/[^a-zA-Z0-9_\-. ]/g, '').slice(0, 20) || 'ANON';
     const safeCombo = typeof maxCombo === 'number' ? Math.max(0, Math.min(maxCombo, 99999)) : 0;
     const safeWeapon = String(weapon || 'pulse_pistol').slice(0, 50);
+    const safeTime = typeof timePlayed === 'number' ? Math.max(0, Math.min(timePlayed, 999999)) : 0;
+    const safeDmg = typeof damageDealt === 'number' ? Math.max(0, Math.min(damageDealt, 999999999)) : 0;
 
     const sql = getDb();
     await sql`
-      INSERT INTO scores (username, score, level, kills, max_combo, weapon)
-      VALUES (${sanitizedName}, ${score}, ${level}, ${kills}, ${safeCombo}, ${safeWeapon})
+      INSERT INTO scores (username, score, level, kills, max_combo, weapon, time_played, damage_dealt)
+      VALUES (${sanitizedName}, ${score}, ${level}, ${kills}, ${safeCombo}, ${safeWeapon}, ${safeTime}, ${safeDmg})
     `;
 
     // Return the player's rank

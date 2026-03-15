@@ -342,7 +342,10 @@ exploration and mastery.
     kills INTEGER NOT NULL,
     max_combo INTEGER NOT NULL DEFAULT 0,
     weapon VARCHAR(50) NOT NULL DEFAULT 'pulse_pistol',
+    time_played INTEGER NOT NULL DEFAULT 0,
+    damage_dealt INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
   );
   CREATE INDEX idx_scores_score ON scores(score DESC);
   ```
+- **Auto-migration:** Table is created automatically on first API call — no manual SQL needed

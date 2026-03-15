@@ -214,7 +214,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -232,7 +232,7 @@ export default function Game() {
   const playerPosRef = useRef<[number, number, number]>([0, 0, 0]);
   const [playerPos, setPlayerPos] = useState<[number, number, number]>([0, 0, 0]);
   // Global leaderboard
-  const [globalScores, setGlobalScores] = useState<{ username: string; score: number; level: number; kills: number; max_combo: number; weapon: string }[]>([]);
+  const [globalScores, setGlobalScores] = useState<{ username: string; score: number; level: number; kills: number; max_combo: number; weapon: string; time_played: number; damage_dealt: number }[]>([]);
   const [globalRank, setGlobalRank] = useState<number | null>(null);
   const [playerName, setPlayerName] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -1023,6 +1023,8 @@ export default function Game() {
                               kills: totalKills,
                               maxCombo: combo.maxCombo,
                               weapon: equippedWeapon,
+                              timePlayed: gameStartedAt ? Math.round((Date.now() - gameStartedAt) / 1000) : 0,
+                              damageDealt,
                             }),
                           });
                           const data = await res.json();

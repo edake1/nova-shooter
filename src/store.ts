@@ -190,6 +190,8 @@ interface GameState {
   level: number;
   killsThisLevel: number;
   totalKills: number;
+  damageDealt: number;
+  gameStartedAt: number;
   enemies: EnemyData[];
   enemyProjectiles: EnemyProjectile[];
   explosions: ExplosionData[];
@@ -315,6 +317,8 @@ export const useStore = create<GameState>((set) => ({
   level: 1,
   killsThisLevel: 0,
   totalKills: 0,
+  damageDealt: 0,
+  gameStartedAt: 0,
   enemies: INITIAL_ENEMIES,
   enemyProjectiles: [],
   explosions: [],
@@ -356,6 +360,8 @@ export const useStore = create<GameState>((set) => ({
     level: 1,
     killsThisLevel: 0,
     totalKills: 0,
+    damageDealt: 0,
+    gameStartedAt: Date.now(),
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
     equippedWeapon: 'pulse_pistol' as WeaponType,
@@ -396,6 +402,8 @@ export const useStore = create<GameState>((set) => ({
     level: 1,
     killsThisLevel: 0,
     totalKills: 0,
+    damageDealt: 0,
+    gameStartedAt: 0,
     enemies: [
       { id: nextId(), position: [0, 4, -30], type: 'swarmer', health: 1, maxHealth: 1 },
       { id: nextId(), position: [20, 3, -35], type: 'swarmer', health: 1, maxHealth: 1 },
@@ -468,7 +476,8 @@ export const useStore = create<GameState>((set) => ({
     hudSettings: { ...state.hudSettings, fov: Math.max(60, Math.min(110, v)) }
   })),
   damageEnemy: (id, amount) => set((state) => ({
-    enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e)
+    enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e),
+    damageDealt: state.damageDealt + amount,
   })),
   removeEnemy: (id) => set((state) => {
     const newEnemies = state.enemies.filter(e => e.id !== id);
