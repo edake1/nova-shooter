@@ -39,6 +39,7 @@ import { LootDrops } from "@/components/LootDrops";
 import { EnemyProjectiles } from "@/components/EnemyProjectiles";
 import { useStore, LOOT_CONFIG } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
+import { WeaponWheel } from "@/components/WeaponWheel";
 
 const RETICLE_PROFILES = {
   pulse_pistol:     { label: "KINETIC",   color: "#e2e8f0", size: 86 },
@@ -489,6 +490,9 @@ export default function Game() {
           )}
         </div>
       )}
+
+      {/* ===== WEAPON WHEEL ===== */}
+      {gamePhase === 'playing' && <WeaponWheel />}
 
       {/* ===== DAMAGE FLASH ===== */}
       {damageFlash > 0 && (
