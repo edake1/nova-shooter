@@ -18,9 +18,10 @@ function MouseLook() {
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!document.pointerLockElement) return;
+      const sens = useStore.getState().hudSettings.mouseSensitivity;
       euler.current.setFromQuaternion(camera.quaternion);
-      euler.current.y -= e.movementX * 0.002;
-      euler.current.x -= e.movementY * 0.002;
+      euler.current.y -= e.movementX * 0.002 * sens;
+      euler.current.x -= e.movementY * 0.002 * sens;
       euler.current.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.current.x));
       camera.quaternion.setFromEuler(euler.current);
     };

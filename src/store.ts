@@ -120,6 +120,9 @@ export interface HudSettings {
   reticleScale: number;
   highContrastReticle: boolean;
   reducedMotion: boolean;
+  sfxVolume: number;
+  musicVolume: number;
+  mouseSensitivity: number;
 }
 
 // Monotonic ID counter — guaranteed unique, no Date.now() collisions
@@ -158,6 +161,9 @@ interface GameState {
   cycleReticleScale: () => void;
   toggleHighContrastReticle: () => void;
   toggleReducedMotion: () => void;
+  setSfxVolume: (v: number) => void;
+  setMusicVolume: (v: number) => void;
+  setMouseSensitivity: (v: number) => void;
   // Loot
   lootDrops: LootDrop[];
   activeBuffs: ActiveBuff[];
@@ -206,7 +212,10 @@ export const useStore = create<GameState>((set) => ({
   hudSettings: {
     reticleScale: 1,
     highContrastReticle: false,
-    reducedMotion: false
+    reducedMotion: false,
+    sfxVolume: 0.5,
+    musicVolume: 0.3,
+    mouseSensitivity: 1.0,
   },
   // Loot state
   lootDrops: [],
@@ -318,6 +327,15 @@ export const useStore = create<GameState>((set) => ({
       ...state.hudSettings,
       reducedMotion: !state.hudSettings.reducedMotion
     }
+  })),
+  setSfxVolume: (v) => set((state) => ({
+    hudSettings: { ...state.hudSettings, sfxVolume: Math.max(0, Math.min(1, v)) }
+  })),
+  setMusicVolume: (v) => set((state) => ({
+    hudSettings: { ...state.hudSettings, musicVolume: Math.max(0, Math.min(1, v)) }
+  })),
+  setMouseSensitivity: (v) => set((state) => ({
+    hudSettings: { ...state.hudSettings, mouseSensitivity: Math.max(0.1, Math.min(3, v)) }
   })),
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e)

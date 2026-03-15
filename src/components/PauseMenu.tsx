@@ -15,7 +15,7 @@ const UI_SFX = {
 
 function playUiSound(src: string, vol = 0.35) {
   const a = new Audio(src);
-  a.volume = vol;
+  a.volume = vol * useStore.getState().hudSettings.sfxVolume;
   a.play().catch(() => {});
 }
 
@@ -60,6 +60,7 @@ export function PauseMenu() {
     equippedWeapon, weaponLevels, hudSettings,
     buyWeaponUpgrade, equipWeapon,
     cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion,
+    setSfxVolume, setMusicVolume, setMouseSensitivity,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
@@ -283,6 +284,44 @@ export function PauseMenu() {
 
           {activeTab === "settings" && (
             <div className="max-w-lg space-y-4">
+              {/* AUDIO */}
+              <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
+                <h3 className="font-orbitron text-cyan-300 text-sm tracking-widest mb-4">AUDIO</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">SFX Volume</span>
+                      <span className="font-mono text-sm text-cyan-300 font-bold">{Math.round(hudSettings.sfxVolume * 100)}%</span>
+                    </div>
+                    <input type="range" min="0" max="100" value={Math.round(hudSettings.sfxVolume * 100)}
+                      onChange={(e) => setSfxVolume(Number(e.target.value) / 100)}
+                      className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">Music Volume</span>
+                      <span className="font-mono text-sm text-cyan-300 font-bold">{Math.round(hudSettings.musicVolume * 100)}%</span>
+                    </div>
+                    <input type="range" min="0" max="100" value={Math.round(hudSettings.musicVolume * 100)}
+                      onChange={(e) => setMusicVolume(Number(e.target.value) / 100)}
+                      className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
+                  </div>
+                </div>
+              </div>
+              {/* CONTROLS */}
+              <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
+                <h3 className="font-orbitron text-cyan-300 text-sm tracking-widest mb-4">CONTROLS</h3>
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">Mouse Sensitivity</span>
+                    <span className="font-mono text-sm text-cyan-300 font-bold">{hudSettings.mouseSensitivity.toFixed(1)}x</span>
+                  </div>
+                  <input type="range" min="10" max="300" value={Math.round(hudSettings.mouseSensitivity * 100)}
+                    onChange={(e) => setMouseSensitivity(Number(e.target.value) / 100)}
+                    className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
+                </div>
+              </div>
+              {/* DISPLAY */}
               <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
                 <h3 className="font-orbitron text-cyan-300 text-sm tracking-widest mb-4">DISPLAY</h3>
                 <div className="space-y-3">

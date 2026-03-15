@@ -3,6 +3,11 @@ import { useEffect, useRef, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useStore, WeaponType, ExplosionType, WEAPON_CLASS } from "@/store";
 
+// Helper to get current SFX volume
+function getSfxVol(): number {
+  return useStore.getState().hudSettings.sfxVolume;
+}
+
 const WEAPON_PROFILE: Record<WeaponType, { baseDamage: number; explosion: ExplosionType; fireRate: number }> = {
   pulse_pistol:     { baseDamage: 1, explosion: "kinetic",   fireRate: 0.15 },
   plasma_caster:    { baseDamage: 2, explosion: "energy",    fireRate: 0.30 },
@@ -68,6 +73,7 @@ function playFireSound(weapon: WeaponType) {
   const pool = firePoolCache[weapon]!;
   const idx = firePoolIdx[weapon]! % POOL_SIZE;
   firePoolIdx[weapon] = idx + 1;
+  pool[idx].volume = WEAPON_FIRE_VOL[weapon] * getSfxVol();
   pool[idx].currentTime = 0;
   pool[idx].play().catch(() => {});
 }
@@ -76,6 +82,7 @@ function playKillSound() {
   if (!killPool) killPool = createAudioPool("/foxboytails-game-start-317318.mp3", 0.5);
   const a = killPool[killIdx % POOL_SIZE];
   killIdx++;
+  a.volume = 0.5 * getSfxVol();
   a.currentTime = 0;
   a.play().catch(() => {});
 }
@@ -84,6 +91,7 @@ function playHitSound() {
   if (!hitPool) hitPool = createAudioPool("/cyberwave-orchestra-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824.mp3", 0.2);
   const a = hitPool[hitIdx % POOL_SIZE];
   hitIdx++;
+  a.volume = 0.2 * getSfxVol();
   a.currentTime = 0;
   a.play().catch(() => {});
 }
