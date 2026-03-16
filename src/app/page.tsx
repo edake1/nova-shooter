@@ -1306,7 +1306,7 @@ export default function Game() {
           }} />
 
           {/* Main card */}
-          <div className="relative z-10 glass-panel p-0 text-center w-[min(92vw,520px)] border-red-500/40 shadow-[0_0_120px_rgba(255,30,30,0.2),0_0_60px_rgba(255,60,30,0.15)]"
+          <div id="gameover-card" className="relative z-10 glass-panel p-0 text-center w-[min(92vw,520px)] border-red-500/40 shadow-[0_0_120px_rgba(255,30,30,0.2),0_0_60px_rgba(255,60,30,0.15)]"
             style={{ animation: 'gameover-fadein 0.6s ease-out forwards' }}>
 
             {/* Red accent line top */}
@@ -1463,6 +1463,30 @@ export default function Game() {
                   style={{ animation: 'gameover-pulse 2s ease-in-out infinite' }}>
                   <span className="relative z-10">PLAY AGAIN</span>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/10 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                </button>
+                <button
+                  onClick={async () => {
+                    const el = document.getElementById('gameover-card');
+                    if (!el) return;
+                    const { default: html2canvas } = await import('html2canvas');
+                    const canvas = await html2canvas(el, { backgroundColor: '#0a0a12', scale: 2 });
+                    canvas.toBlob(async (blob) => {
+                      if (!blob) return;
+                      const file = new File([blob], `nova-score-${score}.png`, { type: 'image/png' });
+                      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'Nova Shooter', text: `I scored ${score.toLocaleString()} points in Nova Shooter!` }).catch(() => {});
+                      } else {
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = file.name;
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                      }
+                    }, 'image/png');
+                  }}
+                  className="w-full px-8 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 font-orbitron font-bold tracking-[0.2em] text-sm hover:bg-amber-400/20 hover:border-amber-400/60 transition-all uppercase cursor-pointer"
+                >
+                  SHARE SCORE
                 </button>
                 <button onClick={handleMainMenu}
                   className="w-full px-8 py-3 rounded-xl border border-slate-500/30 bg-slate-900/30 text-slate-400 font-orbitron font-bold tracking-[0.2em] text-sm hover:bg-slate-800/40 hover:text-slate-200 hover:border-slate-400/50 transition-all uppercase cursor-pointer">

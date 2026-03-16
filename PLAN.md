@@ -311,7 +311,7 @@ exploration and mastery.
 - [x] End-of-run stats screen (score, level, kills)
 - [x] Local high score table (top 10, stored in localStorage)
 - [x] Online leaderboard (Neon serverless Postgres + Next.js API routes)
-- [ ] Share score screenshot
+- [x] Share score screenshot
 
 ### Phase 11: UI & Polish (partial)
 - [x] Premium home screen redesign (animated background, particle effects, nebula, hex grid)
@@ -322,9 +322,9 @@ exploration and mastery.
 - [x] Boss health bar (top-center)
 - [x] Damage numbers floating above enemies
 - [x] Screen shake on explosions
-- [ ] Arena improvements (multiple rooms, moving platforms, cover)
-- [ ] Loading screen with tips
-- [ ] Weapon inspect mode (rotate 3D model in Arsenal)
+- [x] Arena improvements (multiple rooms, moving platforms, cover)
+- [x] Loading screen with tips
+- [x] Weapon inspect mode (rotate 3D model in Arsenal)
 
 ### Phase 12: Deployment & Infrastructure
 - **Platform:** Vercel (zero-config Next.js hosting, free tier)
