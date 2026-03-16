@@ -305,7 +305,7 @@ exploration and mastery.
 - [x] Load/continue from main menu
 - [x] Save data: level, score, weapon unlocks/levels, settings
 - [x] Delete save option
-- [ ] Multiple save slots (3)
+- [x] Multiple save slots (3)
 
 ### Phase 10: Leaderboard & Social
 - [x] End-of-run stats screen (score, level, kills)

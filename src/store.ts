@@ -68,7 +68,7 @@ export function getUpgradeCost(base: number, currentLevel: number): number {
   return Math.floor(base * UPGRADE_COST_MULT[currentLevel - 1]);
 }
 
-export type GamePhase = 'menu' | 'playing' | 'paused' | 'gameover';
+export type GamePhase = 'menu' | 'loading' | 'playing' | 'paused' | 'gameover';
 
 // === LOOT DROP SYSTEM ===
 export type LootType = 'health' | 'shield' | 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'intel_cache' | 'weapon_crate';

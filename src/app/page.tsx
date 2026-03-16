@@ -247,6 +247,8 @@ export default function Game() {
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('global');
   const [saveSlots, setSaveSlots] = useState<ReturnType<typeof getSaveSlots>>([null, null, null]);
+  const [loadingTip, setLoadingTip] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
@@ -257,6 +259,53 @@ export default function Game() {
   const bossMaxHP = bossEnemies.reduce((sum, e) => sum + e.maxHealth, 0);
   const bossName = bossEnemies.length > 1 ? 'BOSS WAVE' : bossEnemies.length === 1 ? (bossEnemies[0].type === 'hive_queen' ? 'HIVE QUEEN' : 'JUGGERNAUT') : '';
   const showBossBar = bossEnemies.length > 0 && gamePhase === 'playing';
+
+  // Loading screen tips
+  const LOADING_TIPS = useMemo(() => [
+    'Use Q to open the Weapon Wheel and swap weapons mid-fight.',
+    'Upgrade weapons in the Arsenal (Tab → pause) each costs credits from kills.',
+    'Shielders absorb frontal damage — flank them or use explosive weapons.',
+    'Phantoms teleport behind you. Listen for the warp sound cue.',
+    'Bombers explode on death — keep your distance when finishing them.',
+    'Each weapon class has a unique kill effect. Experiment!',
+    'Hive Queens spawn swarmers — take them out fast or get overwhelmed.',
+    'Juggernauts are slow but deadly. Kite them with mobile weapons.',
+    'Stack combos for bonus score. Kill quickly to keep the chain going.',
+    'Cryo Emitter slows enemies — great crowd control in a pinch.',
+    'Loot drops from enemies give temporary buffs. Pick them up!',
+    'Sprint with Shift for a speed boost during combat repositioning.',
+    'Higher weapon levels increase damage and fire rate.',
+    'The minimap shows enemy positions — check it often.',
+    'Colorblind modes are available in Settings → Display.',
+  ], []);
+
+  // Loading phase controller
+  const pendingNewGame = useRef(false);
+  useEffect(() => {
+    if (gamePhase !== 'loading') { setLoadingProgress(0); return; }
+    setLoadingTip(LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
+    setLoadingProgress(0);
+    // If level > 1 or score > 0 we're continuing a save, otherwise new game
+    const isNewGame = useStore.getState().level <= 1 && useStore.getState().score === 0;
+    pendingNewGame.current = isNewGame;
+    let frame: number;
+    const start = performance.now();
+    const DURATION = 2800;
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const pct = Math.min(1, elapsed / DURATION);
+      setLoadingProgress(pct);
+      if (pct < 1) { frame = requestAnimationFrame(tick); return; }
+      if (pendingNewGame.current) startGame();
+      else setGamePhase('playing');
+      setTimeout(() => {
+        const el = document.getElementById('game-root') ?? document.body;
+        el.requestPointerLock().catch(() => {});
+      }, 100);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [gamePhase, startGame, setGamePhase, LOADING_TIPS]);
 
   // Client-only flag — avoids hydration mismatch for random particles & localStorage
   useEffect(() => {
@@ -471,7 +520,7 @@ export default function Game() {
           setGamePhase('paused');
         }
       } else if (activeLock) {
-        // Pointer lock acquired during menu/gameover — force exit
+        // Pointer lock acquired during menu/gameover/loading — force exit
         document.exitPointerLock();
       }
     };
@@ -569,20 +618,13 @@ export default function Game() {
   }, []);
 
   const handleStartGame = useCallback(() => {
-    startGame();
-    setTimeout(() => {
-      const target = document.getElementById("game-root") ?? document.body;
-      target.requestPointerLock().catch(() => {});
-    }, 100);
-  }, [startGame]);
+    setGamePhase('loading');
+  }, [setGamePhase]);
 
   const handlePlayAgain = useCallback(() => {
-    startGame();
-    setTimeout(() => {
-      const target = document.getElementById("game-root") ?? document.body;
-      target.requestPointerLock().catch(() => {});
-    }, 100);
-  }, [startGame]);
+    resetGame();
+    setGamePhase('loading');
+  }, [resetGame, setGamePhase]);
 
   const handleMainMenu = useCallback(() => {
     resetGame();
@@ -1046,7 +1088,7 @@ export default function Game() {
                   <div className="absolute bottom-0 left-[10%] right-[10%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.6), transparent)', animation: 'home-border-sweep 3s linear infinite', backgroundSize: '200% 100%' }} />
                 </button>
                 {mounted && saveSlots[selectedSaveSlot] && (
-                  <button onClick={() => { loadGame(selectedSaveSlot); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
+                  <button onClick={() => { loadGame(selectedSaveSlot); setGamePhase('loading'); }}
                     className="group relative px-12 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.3em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
                     style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.08))', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 30px rgba(16,185,129,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                     <span className="relative z-10">CONTINUE</span>
@@ -1090,6 +1132,61 @@ export default function Game() {
               BUILD 2.1.0 // ALL SYSTEMS OPERATIONAL
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ===== LOADING SCREEN ===== */}
+      {gamePhase === 'loading' && (
+        <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-black cursor-default select-none">
+          {/* Animated grid background */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0" style={{
+              backgroundImage: 'linear-gradient(rgba(34,211,238,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.03) 1px, transparent 1px)',
+              backgroundSize: '60px 60px',
+              animation: 'loading-grid-scroll 4s linear infinite',
+            }} />
+          </div>
+
+          {/* Logo shimmer */}
+          <div className="relative mb-12">
+            <h1 className="font-orbitron font-black text-5xl tracking-[0.5em] text-transparent bg-clip-text"
+              style={{ backgroundImage: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 50%, #22d3ee 100%)', backgroundSize: '200% 100%', animation: 'loading-shimmer 2s ease-in-out infinite' }}>
+              NOVA
+            </h1>
+            <div className="absolute -bottom-2 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
+          </div>
+
+          {/* Loading bar */}
+          <div className="w-80 h-1 bg-slate-900/80 rounded-full overflow-hidden border border-cyan-900/30 mb-6">
+            <div className="h-full rounded-full transition-all duration-100"
+              style={{
+                width: `${loadingProgress * 100}%`,
+                background: 'linear-gradient(90deg, #22d3ee, #3b82f6)',
+                boxShadow: '0 0 12px rgba(34,211,238,0.5)',
+              }} />
+          </div>
+
+          {/* Status text */}
+          <div className="font-mono text-cyan-500/50 text-[10px] tracking-[0.5em] uppercase mb-10">
+            {loadingProgress < 0.3 ? 'INITIALIZING SYSTEMS' : loadingProgress < 0.6 ? 'LOADING ARENA' : loadingProgress < 0.9 ? 'CALIBRATING WEAPONS' : 'READY'}
+          </div>
+
+          {/* Tip */}
+          <div className="max-w-md text-center px-6">
+            <span className="text-cyan-400/30 font-mono text-[9px] tracking-[0.3em] uppercase">TIP</span>
+            <p className="text-slate-400 text-sm mt-2 leading-relaxed">{loadingTip}</p>
+          </div>
+
+          <style>{`
+            @keyframes loading-grid-scroll {
+              from { transform: translate(0, 0); }
+              to { transform: translate(60px, 60px); }
+            }
+            @keyframes loading-shimmer {
+              0%, 100% { background-position: 0% center; }
+              50% { background-position: 200% center; }
+            }
+          `}</style>
         </div>
       )}
 
