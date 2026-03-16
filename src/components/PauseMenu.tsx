@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useStore, WEAPON_PROFILES, MAX_WEAPON_LEVEL, getUpgradeCost } from "@/store";
 import type { WeaponType, ColorblindMode, KeyBinds } from "@/store";
+
+const WeaponInspect = lazy(() => import("./WeaponInspect"));
 
 type Tab = "arsenal" | "telemetry" | "settings";
 
@@ -121,6 +123,8 @@ export function PauseMenu() {
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
   const [statusLine, setStatusLine] = useState("SYSTEMS NOMINAL");
   const [rebindingAction, setRebindingAction] = useState<keyof KeyBinds | null>(null);
+  const [inspectWeapon, setInspectWeapon] = useState<WeaponType | null>(null);
+  const inspectLevel = inspectWeapon ? weaponLevels[inspectWeapon] : 0;
 
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
@@ -290,6 +294,12 @@ export function PauseMenu() {
                           onClick={() => { equipWeapon(card.id); playUiSound(UI_SFX.equip, 0.3); setStatusLine("EQUIPPED " + card.label.toUpperCase()); }}
                           className="rounded border border-white/30 bg-white/8 px-2 py-1 text-[11px] font-bold tracking-wide text-white transition hover:bg-white/15"
                         >EQUIP</button>
+                      )}
+                      {card.unlocked && (
+                        <button type="button"
+                          onClick={() => { setInspectWeapon(card.id); playUiSound(UI_SFX.equip, 0.2); }}
+                          className="rounded border border-slate-600/50 bg-slate-700/20 px-2 py-1 text-[11px] font-bold tracking-wide text-slate-300 transition hover:bg-slate-600/30 hover:text-white"
+                        >INSPECT</button>
                       )}
                       {card.unlocked && !card.maxed && (
                         <button type="button" disabled={!card.canUpgrade}
@@ -525,6 +535,13 @@ export function PauseMenu() {
           <p className="text-cyan-400/50 font-mono text-xs tracking-widest uppercase">or press ESC to toggle</p>
         </div>
       </div>
+
+      {/* Weapon Inspect overlay */}
+      {inspectWeapon && (
+        <Suspense fallback={null}>
+          <WeaponInspect weapon={inspectWeapon} level={inspectLevel} onClose={() => setInspectWeapon(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }
