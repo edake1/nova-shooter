@@ -586,8 +586,32 @@ export default function Game() {
     if (document.pointerLockElement) document.exitPointerLock();
   }, [resetGame]);
 
+  // Colorblind CSS filter
+  const colorblindFilter = useMemo(() => {
+    switch (hudSettings.colorblindMode) {
+      case 'protanopia': return 'url(#cb-protanopia)';
+      case 'deuteranopia': return 'url(#cb-deuteranopia)';
+      case 'tritanopia': return 'url(#cb-tritanopia)';
+      default: return 'none';
+    }
+  }, [hudSettings.colorblindMode]);
+
   return (
-    <main id="game-root" className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden">
+    <main id="game-root" className="w-screen h-screen relative bg-[#050510] font-sans selection:bg-cyan-900 overflow-hidden" style={{ filter: colorblindFilter }}>
+      {/* SVG colorblind simulation filters */}
+      <svg className="absolute w-0 h-0" aria-hidden="true">
+        <defs>
+          <filter id="cb-protanopia">
+            <feColorMatrix type="matrix" values="0.567,0.433,0,0,0 0.558,0.442,0,0,0 0,0.242,0.758,0,0 0,0,0,1,0" />
+          </filter>
+          <filter id="cb-deuteranopia">
+            <feColorMatrix type="matrix" values="0.625,0.375,0,0,0 0.7,0.3,0,0,0 0,0.3,0.7,0,0 0,0,0,1,0" />
+          </filter>
+          <filter id="cb-tritanopia">
+            <feColorMatrix type="matrix" values="0.95,0.05,0,0,0 0,0.433,0.567,0,0 0,0.475,0.525,0,0 0,0,0,1,0" />
+          </filter>
+        </defs>
+      </svg>
       <Canvas shadows camera={{ fov: 75 }} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, pointerEvents: gamePhase === 'playing' ? 'auto' : 'none' }}>
         <color attach="background" args={["#030308"]} />
         <fog attach="fog" args={["#030308", 5, 60]} />

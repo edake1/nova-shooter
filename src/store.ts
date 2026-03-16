@@ -170,6 +170,28 @@ export interface ExplosionData {
   type: ExplosionType;
 }
 
+export type ColorblindMode = 'off' | 'protanopia' | 'deuteranopia' | 'tritanopia';
+
+export interface KeyBinds {
+  forward: string;
+  backward: string;
+  left: string;
+  right: string;
+  jump: string;
+  sprint: string;
+  weaponWheel: string;
+}
+
+export const DEFAULT_KEYBINDS: KeyBinds = {
+  forward: 'KeyW',
+  backward: 'KeyS',
+  left: 'KeyA',
+  right: 'KeyD',
+  jump: 'Space',
+  sprint: 'ShiftLeft',
+  weaponWheel: 'KeyQ',
+};
+
 export interface HudSettings {
   reticleScale: number;
   highContrastReticle: boolean;
@@ -180,6 +202,8 @@ export interface HudSettings {
   fov: number;
   graphicsQuality: 'low' | 'medium' | 'high';
   showFps: boolean;
+  colorblindMode: ColorblindMode;
+  keyBinds: KeyBinds;
 }
 
 // Monotonic ID counter — guaranteed unique, no Date.now() collisions
@@ -231,6 +255,8 @@ interface GameState {
   setFov: (v: number) => void;
   setGraphicsQuality: (q: 'low' | 'medium' | 'high') => void;
   toggleShowFps: () => void;
+  setColorblindMode: (mode: ColorblindMode) => void;
+  setKeyBind: (action: keyof KeyBinds, code: string) => void;
   // Loot
   lootDrops: LootDrop[];
   activeBuffs: ActiveBuff[];
@@ -345,7 +371,10 @@ export const useStore = create<GameState>((set) => ({
     musicVolume: 0.3,
     mouseSensitivity: 1.0,
     fov: 75,    graphicsQuality: 'high' as const,
-    showFps: false,  },
+    showFps: false,
+    colorblindMode: 'off' as ColorblindMode,
+    keyBinds: { ...DEFAULT_KEYBINDS },
+  },
   // Loot state
   lootDrops: [],
   activeBuffs: [],
@@ -484,6 +513,12 @@ export const useStore = create<GameState>((set) => ({
   })),
   toggleShowFps: () => set((state) => ({
     hudSettings: { ...state.hudSettings, showFps: !state.hudSettings.showFps }
+  })),
+  setColorblindMode: (mode) => set((state) => ({
+    hudSettings: { ...state.hudSettings, colorblindMode: mode }
+  })),
+  setKeyBind: (action, code) => set((state) => ({
+    hudSettings: { ...state.hudSettings, keyBinds: { ...state.hudSettings.keyBinds, [action]: code } }
   })),
   damageEnemy: (id, amount) => set((state) => ({
     enemies: state.enemies.map(e => e.id === id ? { ...e, health: e.health - amount } : e),

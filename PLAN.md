@@ -294,8 +294,8 @@ exploration and mastery.
 - [x] Reduced motion toggle
 - [x] FOV slider (60-110)
 - [x] Graphics quality (Low/Medium/High — bloom, particles, reflections)
-- [ ] Keybind remapping
-- [ ] Colorblind mode (enemy/reticle color overrides)
+- [x] Keybind remapping
+- [x] Colorblind mode (enemy/reticle color overrides)
 - [x] Fullscreen toggle
 - [x] Show FPS counter toggle
 

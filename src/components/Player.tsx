@@ -14,21 +14,23 @@ const useKeyControls = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "KeyW") keys.current.forward = true;
-      if (e.code === "KeyS") keys.current.backward = true;
-      if (e.code === "KeyA") keys.current.left = true;
-      if (e.code === "KeyD") keys.current.right = true;
-      if (e.code === "Space") keys.current.jump = true;
-      if (e.code === "ShiftLeft") keys.current.sprint = true;
+      const kb = useStore.getState().hudSettings.keyBinds;
+      if (e.code === kb.forward) keys.current.forward = true;
+      if (e.code === kb.backward) keys.current.backward = true;
+      if (e.code === kb.left) keys.current.left = true;
+      if (e.code === kb.right) keys.current.right = true;
+      if (e.code === kb.jump) keys.current.jump = true;
+      if (e.code === kb.sprint) keys.current.sprint = true;
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "KeyW") keys.current.forward = false;
-      if (e.code === "KeyS") keys.current.backward = false;
-      if (e.code === "KeyA") keys.current.left = false;
-      if (e.code === "KeyD") keys.current.right = false;
-      if (e.code === "Space") keys.current.jump = false;
-      if (e.code === "ShiftLeft") keys.current.sprint = false;
+      const kb = useStore.getState().hudSettings.keyBinds;
+      if (e.code === kb.forward) keys.current.forward = false;
+      if (e.code === kb.backward) keys.current.backward = false;
+      if (e.code === kb.left) keys.current.left = false;
+      if (e.code === kb.right) keys.current.right = false;
+      if (e.code === kb.jump) keys.current.jump = false;
+      if (e.code === kb.sprint) keys.current.sprint = false;
     };
 
     document.addEventListener("keydown", handleKeyDown);

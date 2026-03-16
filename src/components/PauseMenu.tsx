@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useStore, WEAPON_PROFILES, MAX_WEAPON_LEVEL, getUpgradeCost } from "@/store";
-import type { WeaponType } from "@/store";
+import type { WeaponType, ColorblindMode, KeyBinds } from "@/store";
 
 type Tab = "arsenal" | "telemetry" | "settings";
 
@@ -56,6 +56,37 @@ const TAB_LABELS: { id: Tab; label: string; hotkey: string }[] = [
   { id: "settings", label: "SETTINGS", hotkey: "F3" },
 ];
 
+function formatKeyCode(code: string): string {
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  if (code === 'ShiftLeft' || code === 'ShiftRight') return 'SHIFT';
+  if (code === 'ControlLeft' || code === 'ControlRight') return 'CTRL';
+  if (code === 'AltLeft' || code === 'AltRight') return 'ALT';
+  if (code === 'Space') return 'SPACE';
+  if (code === 'ArrowUp') return '↑';
+  if (code === 'ArrowDown') return '↓';
+  if (code === 'ArrowLeft') return '←';
+  if (code === 'ArrowRight') return '→';
+  return code.toUpperCase();
+}
+
+const KEYBIND_LABELS: Record<string, string> = {
+  forward: 'FORWARD',
+  backward: 'BACKWARD',
+  left: 'STRAFE LEFT',
+  right: 'STRAFE RIGHT',
+  jump: 'JUMP',
+  sprint: 'SPRINT',
+  weaponWheel: 'WEAPON WHEEL',
+};
+
+const COLORBLIND_MODES: { value: ColorblindMode; label: string }[] = [
+  { value: 'off', label: 'OFF' },
+  { value: 'protanopia', label: 'PROTANOPIA' },
+  { value: 'deuteranopia', label: 'DEUTERANOPIA' },
+  { value: 'tritanopia', label: 'TRITANOPIA' },
+];
+
 function accentClasses(accent: string) {
   if (accent === "cyan") return "border-cyan-400/40 text-cyan-300 bg-cyan-500/10";
   if (accent === "amber") return "border-amber-400/40 text-amber-300 bg-amber-500/10";
@@ -84,11 +115,12 @@ export function PauseMenu() {
     buyWeaponUpgrade, equipWeapon,
     cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion,
     setSfxVolume, setMusicVolume, setMouseSensitivity, setFov,
-    setGraphicsQuality, toggleShowFps,
+    setGraphicsQuality, toggleShowFps, setColorblindMode, setKeyBind,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<Tab>("arsenal");
   const [statusLine, setStatusLine] = useState("SYSTEMS NOMINAL");
+  const [rebindingAction, setRebindingAction] = useState<keyof KeyBinds | null>(null);
 
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
@@ -137,6 +169,25 @@ export function PauseMenu() {
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
   }, [gamePhase, cards, equippedWeapon, buyWeaponUpgrade, equipWeapon, cycleReticleScale, toggleHighContrastReticle, toggleReducedMotion]);
+
+  // Keybind rebinding listener
+  useEffect(() => {
+    if (!rebindingAction) return;
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.code === 'Escape') {
+        setRebindingAction(null);
+        return;
+      }
+      setKeyBind(rebindingAction, e.code);
+      playUiSound(UI_SFX.success, 0.3);
+      setStatusLine(`BOUND ${rebindingAction.toUpperCase()} → ${formatKeyCode(e.code)}`);
+      setRebindingAction(null);
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [rebindingAction, setKeyBind]);
 
   if (gamePhase !== 'paused') return null;
 
@@ -344,6 +395,25 @@ export function PauseMenu() {
                     onChange={(e) => setMouseSensitivity(Number(e.target.value) / 100)}
                     className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
                 </div>
+                {/* Keybind remapping */}
+                <div className="mt-4 space-y-1.5">
+                  <p className="font-mono text-xs text-cyan-400/70 uppercase tracking-wider mb-2">Key Bindings</p>
+                  {(Object.keys(KEYBIND_LABELS) as (keyof typeof KEYBIND_LABELS)[]).map((action) => (
+                    <button key={action} type="button"
+                      onClick={() => { setRebindingAction(action as keyof KeyBinds); playUiSound(UI_SFX.equip, 0.2); setStatusLine(`PRESS KEY FOR ${KEYBIND_LABELS[action]}`); }}
+                      className={`w-full rounded border px-3 py-1.5 text-left font-mono text-xs uppercase tracking-wider transition flex justify-between items-center ${
+                        rebindingAction === action
+                          ? 'border-amber-400 bg-amber-500/20 text-amber-200 animate-pulse'
+                          : 'border-cyan-500/30 bg-black/30 text-cyan-200 hover:bg-cyan-500/10'
+                      }`}
+                    >
+                      <span>{KEYBIND_LABELS[action]}</span>
+                      <span className="font-bold text-cyan-300">
+                        {rebindingAction === action ? '...' : formatKeyCode(hudSettings.keyBinds[action as keyof KeyBinds])}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
               {/* DISPLAY */}
               <div className="rounded-xl border border-cyan-500/25 bg-black/40 p-5">
@@ -403,6 +473,25 @@ export function PauseMenu() {
                     onClick={() => { toggleShowFps(); playUiSound(UI_SFX.equip, 0.25); setStatusLine("FPS COUNTER TOGGLED"); }}
                     className="w-full rounded border border-cyan-500/50 bg-cyan-500/10 px-4 py-2.5 text-left font-mono text-sm uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/20 transition flex justify-between items-center"
                   ><span>FPS Counter</span><span className={`font-bold ${hudSettings.showFps ? 'text-emerald-400' : 'text-slate-500'}`}>{hudSettings.showFps ? 'ON' : 'OFF'}</span></button>
+                  {/* Colorblind Mode */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="font-mono text-sm uppercase tracking-wider text-cyan-200">Colorblind</span>
+                      <span className="font-mono text-sm text-cyan-300 font-bold uppercase">{hudSettings.colorblindMode}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {COLORBLIND_MODES.map((m) => (
+                        <button key={m.value} type="button"
+                          onClick={() => { setColorblindMode(m.value); playUiSound(UI_SFX.equip, 0.25); setStatusLine(`COLORBLIND: ${m.label}`); }}
+                          className={`rounded border px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider transition ${
+                            hudSettings.colorblindMode === m.value
+                              ? 'border-cyan-400 bg-cyan-500/20 text-cyan-200'
+                              : 'border-cyan-500/30 bg-black/30 text-slate-400 hover:bg-cyan-500/10'
+                          }`}
+                        >{m.label}</button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
               {/* HOTKEYS */}

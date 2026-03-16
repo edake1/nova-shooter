@@ -29,7 +29,8 @@ export function WeaponWheel() {
     }
 
     const down = (e: KeyboardEvent) => {
-      if (e.code === "KeyQ" && !e.repeat) {
+      const kb = useStore.getState().hudSettings.keyBinds;
+      if (e.code === kb.weaponWheel && !e.repeat) {
         setOpen(true);
         centerRef.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       }
@@ -41,7 +42,8 @@ export function WeaponWheel() {
       }
     };
     const up = (e: KeyboardEvent) => {
-      if (e.code === "KeyQ") {
+      const kb = useStore.getState().hudSettings.keyBinds;
+      if (e.code === kb.weaponWheel) {
         if (hoveredIdx >= 0 && hoveredIdx < unlocked.length) {
           handleSelect(unlocked[hoveredIdx].id);
         }
