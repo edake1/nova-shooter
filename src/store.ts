@@ -270,15 +270,18 @@ interface GameState {
   tickEnemyProjectiles: (playerPos: [number, number, number]) => void;
   destroyEnemyProjectile: (id: number) => void;
   // Save system
+  selectedSaveSlot: number;
+  setSelectedSaveSlot: (slot: number) => void;
   saveGame: () => void;
-  loadGame: () => boolean;
-  hasSave: () => boolean;
-  deleteSave: () => void;
+  loadGame: (slot: number) => boolean;
+  hasSave: (slot: number) => boolean;
+  deleteSave: (slot: number) => void;
 }
 
 // === SAVE SYSTEM ===
-const SAVE_KEY = 'nova_save';
+const SAVE_KEY = 'nova_save'; // base key — slots: nova_save_0, nova_save_1, nova_save_2
 const HIGHSCORE_KEY = 'nova_highscores';
+const NUM_SAVE_SLOTS = 3;
 
 export interface HighScoreEntry {
   score: number;
@@ -318,16 +321,25 @@ interface SaveData {
   savedAt: number;
 }
 
-function writeSave(data: SaveData) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch {}
+function slotKey(slot: number): string {
+  return `${SAVE_KEY}_${slot}`;
 }
 
-function readSave(): SaveData | null {
+function writeSave(data: SaveData, slot: number) {
+  try { localStorage.setItem(slotKey(slot), JSON.stringify(data)); } catch {}
+}
+
+function readSave(slot: number): SaveData | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(slotKey(slot));
     if (!raw) return null;
     return JSON.parse(raw) as SaveData;
   } catch { return null; }
+}
+
+/** Read summary info for all 3 save slots */
+export function getSaveSlots(): (SaveData | null)[] {
+  return Array.from({ length: NUM_SAVE_SLOTS }, (_, i) => readSave(i));
 }
 // === END SAVE ===
 
@@ -379,6 +391,9 @@ export const useStore = create<GameState>((set) => ({
   lootDrops: [],
   activeBuffs: [],
   shieldHP: 0,
+  // Save system
+  selectedSaveSlot: 0,
+  setSelectedSaveSlot: (slot) => set({ selectedSaveSlot: slot }),
   incScore: (val) => set((state) => ({ score: state.score + val })),
   setPaused: (val) => {
     set({ isPaused: val });
@@ -794,11 +809,11 @@ export const useStore = create<GameState>((set) => ({
       playerHealth: s.playerHealth,
       hudSettings: s.hudSettings,
       savedAt: Date.now(),
-    });
+    }, s.selectedSaveSlot);
   },
 
-  loadGame: () => {
-    const data = readSave();
+  loadGame: (slot: number) => {
+    const data = readSave(slot);
     if (!data) return false;
     useStore.setState({
       gamePhase: 'playing' as GamePhase,
@@ -819,13 +834,16 @@ export const useStore = create<GameState>((set) => ({
       lootDrops: [],
       activeBuffs: [],
       shieldHP: 0,
+      selectedSaveSlot: slot,
     });
     return true;
   },
 
-  hasSave: () => readSave() !== null,
+  hasSave: (slot: number) => {
+    return readSave(slot) !== null;
+  },
 
-  deleteSave: () => {
-    try { localStorage.removeItem(SAVE_KEY); } catch {}
+  deleteSave: (slot: number) => {
+    try { localStorage.removeItem(slotKey(slot)); } catch {}
   },
 }));

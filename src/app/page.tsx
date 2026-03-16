@@ -61,7 +61,7 @@ import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { LootDrops } from "@/components/LootDrops";
 import { EnemyProjectiles } from "@/components/EnemyProjectiles";
-import { useStore, LOOT_CONFIG, getHighScores } from "@/store";
+import { useStore, LOOT_CONFIG, getHighScores, getSaveSlots } from "@/store";
 import type { HighScoreEntry } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 import { WeaponWheel } from "@/components/WeaponWheel";
@@ -215,7 +215,7 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt, enemies } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt, enemies, selectedSaveSlot, setSelectedSaveSlot } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -246,6 +246,7 @@ export default function Game() {
   });
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   const [leaderboardTab, setLeaderboardTab] = useState<'local' | 'global'>('global');
+  const [saveSlots, setSaveSlots] = useState<ReturnType<typeof getSaveSlots>>([null, null, null]);
   const reticleLabel = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).label;
   const reticleColor = (RETICLE_PROFILES[equippedWeapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.plasma_caster).color;
   const showGameplayReticle = gamePhase === 'playing' && hasPointerLock;
@@ -260,12 +261,14 @@ export default function Game() {
   // Client-only flag — avoids hydration mismatch for random particles & localStorage
   useEffect(() => {
     setMounted(true);
-    setSaveExists(hasSave());
-  }, [hasSave]);
+    setSaveExists(hasSave(selectedSaveSlot));
+    setSaveSlots(getSaveSlots());
+  }, [hasSave, selectedSaveSlot]);
 
   useEffect(() => {
-    setSaveExists(hasSave());
-  }, [hasSave, gamePhase]);
+    setSaveExists(hasSave(selectedSaveSlot));
+    setSaveSlots(getSaveSlots());
+  }, [hasSave, gamePhase, selectedSaveSlot]);
 
   // Load high scores when game ends
   useEffect(() => {
@@ -1000,6 +1003,39 @@ export default function Game() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col gap-4 items-center" style={{ animation: 'home-stat-count 1s ease-out 0.9s both' }}>
+              {/* Save slots */}
+              {mounted && (
+                <div className="flex gap-3 mb-2">
+                  {saveSlots.map((slot, i) => (
+                    <button key={i}
+                      onClick={() => setSelectedSaveSlot(i)}
+                      className={`relative rounded-lg px-5 py-3 font-mono text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer min-w-[140px] text-left ${
+                        selectedSaveSlot === i
+                          ? 'border border-cyan-400/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.15)]'
+                          : 'border border-cyan-500/20 bg-black/40 text-slate-400 hover:border-cyan-500/40 hover:bg-cyan-500/5'
+                      }`}
+                    >
+                      <div className="font-bold text-[10px] tracking-widest mb-1">SLOT {i + 1}</div>
+                      {slot ? (
+                        <>
+                          <div className="text-cyan-300 font-bold">LV {slot.level} &bull; {slot.score.toLocaleString()} pts</div>
+                          <div className="text-slate-500 text-[9px] mt-0.5">{slot.totalKills} kills &bull; {new Date(slot.savedAt).toLocaleDateString()}</div>
+                        </>
+                      ) : (
+                        <div className="text-slate-600">EMPTY</div>
+                      )}
+                      {slot && selectedSaveSlot === i && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteSave(i); setSaveSlots(getSaveSlots()); setSaveExists(hasSave(selectedSaveSlot)); }}
+                          className="absolute top-1.5 right-1.5 text-red-500/50 hover:text-red-400 text-[10px] font-bold cursor-pointer"
+                          title="Delete save"
+                        >✕</button>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex gap-4">
                 <button onClick={handleStartGame}
                   className="group relative px-16 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.4em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
@@ -1009,8 +1045,8 @@ export default function Game() {
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/0 via-cyan-400/15 to-cyan-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                   <div className="absolute bottom-0 left-[10%] right-[10%] h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(34,211,238,0.6), transparent)', animation: 'home-border-sweep 3s linear infinite', backgroundSize: '200% 100%' }} />
                 </button>
-                {mounted && saveExists && (
-                  <button onClick={() => { loadGame(); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
+                {mounted && saveSlots[selectedSaveSlot] && (
+                  <button onClick={() => { loadGame(selectedSaveSlot); const el = document.getElementById('game-root') ?? document.body; el.requestPointerLock().catch(() => {}); }}
                     className="group relative px-12 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.3em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
                     style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(34,211,238,0.08))', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 30px rgba(16,185,129,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                     <span className="relative z-10">CONTINUE</span>
