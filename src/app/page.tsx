@@ -3,6 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
+import type { RapierRigidBody } from "@react-three/rapier";
 import * as THREE from "three";
 import { EffectComposer, Bloom, Vignette, Noise, ChromaticAberration } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
@@ -212,6 +213,35 @@ function AliveText({ value, prefix = "", suffix = "", animate = false }: { value
   }, [value, animate, prefix, suffix]);
 
   return <span ref={spanRef}>{prefix}{value.toString()}{suffix}</span>;
+}
+
+/** Moving platform that oscillates between two points */
+function MovingPlatform({ from, to, size, speed = 1 }: { from: [number, number, number]; to: [number, number, number]; size: [number, number, number]; speed?: number }) {
+  const rigidRef = useRef<RapierRigidBody>(null);
+  const elapsed = useRef(0);
+  useFrame((_, delta) => {
+    if (!rigidRef.current) return;
+    elapsed.current += delta * speed;
+    const t = (Math.sin(elapsed.current) + 1) / 2;
+    rigidRef.current.setTranslation({
+      x: from[0] + (to[0] - from[0]) * t,
+      y: from[1] + (to[1] - from[1]) * t,
+      z: from[2] + (to[2] - from[2]) * t,
+    }, true);
+  });
+  return (
+    <RigidBody ref={rigidRef} type="kinematicPosition" colliders="cuboid" position={from}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color="#0a0a1a" metalness={0.9} roughness={0.15} emissive="#00ffff" emissiveIntensity={0.15} />
+      </mesh>
+      {/* Edge glow strips */}
+      <mesh position={[0, size[1] / 2 + 0.01, 0]}>
+        <boxGeometry args={[size[0], 0.02, size[2]]} />
+        <meshStandardMaterial color="#000" emissive="#00ffff" emissiveIntensity={1} toneMapped={false} transparent opacity={0.4} />
+      </mesh>
+    </RigidBody>
+  );
 }
 
 export default function Game() {
@@ -679,6 +709,47 @@ export default function Game() {
             <RigidBody type="fixed" position={[12, 3, -5]} colliders="cuboid">
               <mesh castShadow receiveShadow><boxGeometry args={[3, 6, 3]} /><meshStandardMaterial color="#000" roughness={0.1} metalness={0.9} /></mesh>
             </RigidBody>
+
+            {/* === RAISED PLATFORMS === */}
+            {[
+              { pos: [-20, 1.5, -25], size: [10, 3, 8] },
+              { pos: [25, 2, -30], size: [8, 4, 6] },
+              { pos: [-30, 1, 15], size: [12, 2, 10] },
+              { pos: [35, 2.5, 20], size: [7, 5, 7] },
+            ].map((p, i) => (
+              <RigidBody key={`plat-${i}`} type="fixed" colliders="cuboid" position={p.pos as [number, number, number]}>
+                <mesh castShadow receiveShadow>
+                  <boxGeometry args={p.size as [number, number, number]} />
+                  <meshStandardMaterial color="#08081a" metalness={0.85} roughness={0.2} emissive="#0066ff" emissiveIntensity={0.05} />
+                </mesh>
+                {/* Top edge glow */}
+                <mesh position={[0, p.size[1] / 2 + 0.01, 0]}>
+                  <boxGeometry args={[p.size[0], 0.02, p.size[2]]} />
+                  <meshStandardMaterial color="#000" emissive="#00ffff" emissiveIntensity={0.6} toneMapped={false} transparent opacity={0.25} />
+                </mesh>
+              </RigidBody>
+            ))}
+
+            {/* === COVER WALLS === */}
+            {[
+              { pos: [-10, 1.25, -8], size: [6, 2.5, 0.5] },
+              { pos: [8, 1.25, -20], size: [0.5, 2.5, 6] },
+              { pos: [-15, 1, 10], size: [4, 2, 0.5] },
+              { pos: [20, 1, 8], size: [0.5, 2, 5] },
+              { pos: [0, 1.25, 20], size: [8, 2.5, 0.5] },
+              { pos: [-25, 1, -10], size: [0.5, 2, 4] },
+            ].map((c, i) => (
+              <RigidBody key={`cover-${i}`} type="fixed" colliders="cuboid" position={c.pos as [number, number, number]}>
+                <mesh castShadow receiveShadow>
+                  <boxGeometry args={c.size as [number, number, number]} />
+                  <meshStandardMaterial color="#0a0a12" metalness={0.8} roughness={0.3} emissive="#ff0044" emissiveIntensity={0.03} />
+                </mesh>
+              </RigidBody>
+            ))}
+
+            {/* === MOVING PLATFORMS === */}
+            <MovingPlatform from={[-35, 3, 0]} to={[-35, 8, 0]} size={[6, 0.5, 6]} speed={0.6} />
+            <MovingPlatform from={[15, 1, 30]} to={[30, 1, 30]} size={[5, 0.5, 5]} speed={0.8} />
 
             <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
               <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
