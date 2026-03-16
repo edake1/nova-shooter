@@ -7,7 +7,7 @@ import { useStore } from "@/store";
 import type { EnemyType } from "@/store";
 
 // ─── Music tracks ───────────────────────────────────────────────────────────
-const MUSIC_CALM = "/xtremefreddy-game-music-loop-6-144641.mp3";
+const MUSIC_CALM = "/idoberg-synthwave-loop-v1-254569.mp3";
 const MUSIC_COMBAT = "/xtremefreddy-game-music-loop-7-145285.mp3";
 
 // ─── Enemy SFX (reuse existing files for spawn/attack/death per enemy tier) ─
