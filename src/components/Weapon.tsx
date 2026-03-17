@@ -58,7 +58,7 @@ const WEAPON_FIRE_SFX: Record<WeaponType, string> = {
 };
 
 const WEAPON_FIRE_VOL: Record<WeaponType, number> = {
-  pulse_pistol: 0.3, plasma_caster: 0.3, frag_launcher: 0.15, shrapnel_blaster: 0.35, cryo_emitter: 0.25, void_reaper: 0.35,
+  pulse_pistol: 0.3, plasma_caster: 0.3, frag_launcher: 0.06, shrapnel_blaster: 0.35, cryo_emitter: 0.25, void_reaper: 0.35,
   lightning_coil: 0.3, blade_wave: 0.3, railgun: 0.2, gravity_well: 0.15, swarm_missiles: 0.3, beam_laser: 0.25,
   ricochet_cannon: 0.3, sonic_boom: 0.2, nano_swarm: 0.25, photon_burst: 0.2, plasma_whip: 0.3, warp_lance: 0.2,
 };
@@ -701,12 +701,12 @@ export function Weapon() {
     if (weaponMeshRef.current) {
       weaponMeshRef.current.position.z = THREE.MathUtils.lerp(
         weaponMeshRef.current.position.z,
-        recoilRef.current > 0 ? -0.1 : -0.4,
+        recoilRef.current > 0 ? -0.25 : -0.4,
         delta * 15
       );
       weaponMeshRef.current.rotation.x = THREE.MathUtils.lerp(
         weaponMeshRef.current.rotation.x,
-        recoilRef.current > 0 ? 0.3 : 0,
+        recoilRef.current > 0 ? 0.1 : 0,
         delta * 15
       );
     }

@@ -7,7 +7,13 @@ import { useStore } from "@/store";
 import type { EnemyType } from "@/store";
 
 // ─── Music tracks ───────────────────────────────────────────────────────────
-const MUSIC_CALM = "/idoberg-synthwave-loop-v1-254569.mp3";
+export const MUSIC_THEMES = {
+  synthwave: { label: "Synthwave", calm: "/idoberg-synthwave-loop-v1-254569.mp3" },
+  cyberpunk: { label: "Cyberpunk Beat", calm: "/freesound_community-cyberpunk-beat-64649.mp3" },
+  retro: { label: "Retro Loop", calm: "/xtremefreddy-game-music-loop-6-144641.mp3" },
+} as const;
+export type MusicTheme = keyof typeof MUSIC_THEMES;
+
 const MUSIC_COMBAT = "/xtremefreddy-game-music-loop-7-145285.mp3";
 
 // ─── Enemy SFX (reuse existing files for spawn/attack/death per enemy tier) ─
@@ -67,6 +73,7 @@ class AudioManager {
   private intensity: MusicIntensity = "calm";
   private crossfadeRaf = 0;
   private started = false;
+  private currentTheme: MusicTheme = "synthwave";
 
   // Enemy SFX pools (small per enemy type)
   private enemyPools: Map<string, HTMLAudioElement[]> = new Map();
@@ -95,7 +102,8 @@ class AudioManager {
     this.started = true;
 
     const mv = this.getMusicVol();
-    this.calmTrack = this.makeLoop(MUSIC_CALM, mv * 0.5);
+    const calmSrc = MUSIC_THEMES[this.currentTheme].calm;
+    this.calmTrack = this.makeLoop(calmSrc, mv * 0.5);
     this.combatTrack = this.makeLoop(MUSIC_COMBAT, 0);
     this.ambientTrack = this.makeLoop(AMBIENT_SRC, this.getSfxVol() * 0.06);
 
@@ -232,6 +240,24 @@ class AudioManager {
     const src = ENEMY_DEATH_SFX[type];
     const vol = ENEMY_DEATH_VOL[type] ?? 0.15;
     if (src) this.playFromPool(`death_${type}`, src, vol);
+  }
+
+  /** Switch the calm music theme */
+  setTheme(theme: MusicTheme) {
+    this.currentTheme = theme;
+    if (this.started && this.calmTrack) {
+      const calmSrc = MUSIC_THEMES[theme].calm;
+      const currentTime = this.calmTrack.currentTime;
+      const currentVol = this.calmTrack.volume;
+      this.calmTrack.pause();
+      this.calmTrack = this.makeLoop(calmSrc, currentVol);
+      this.calmTrack.currentTime = 0;
+      this.calmTrack.play().catch(() => {});
+    }
+  }
+
+  getTheme(): MusicTheme {
+    return this.currentTheme;
   }
 
   /** Update volume levels when settings change (called from settings UI) */

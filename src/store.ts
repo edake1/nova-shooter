@@ -637,7 +637,7 @@ export const useStore = create<GameState>((set) => ({
     return state;
   }),
   spawnEnemies: (playerPos) => set((state) => {
-    const maxEnemies = 5 + state.level * 3;
+    const maxEnemies = Math.min(20, 5 + state.level * 2);
     if (state.enemies.length >= maxEnemies) return state;
     
     // Build spawn pool based on level — new types phase in gradually

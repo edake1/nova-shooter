@@ -12,27 +12,27 @@ function getFxProfile(type: ExplosionType): FxProfile {
   switch (type) {
     // KINETIC: sharp shatter fragments
     case 'kinetic':
-      return { count: 3000, speed: 30, gravity: 25, lifetime: 1.2, size: 120, spread: 'sphere' };
+      return { count: 400, speed: 30, gravity: 25, lifetime: 0.8, size: 120, spread: 'sphere' };
     // ENERGY: white-flash disintegrate, outward scatter
     case 'energy': case 'beam': case 'photon': case 'arc':
-      return { count: 6000, speed: 20, gravity: 5, lifetime: 1.6, size: 180, spread: 'sphere' };
+      return { count: 600, speed: 20, gravity: 5, lifetime: 1.0, size: 180, spread: 'sphere' };
     // EXPLOSIVE: heavy ragdoll + lots of debris
     case 'explosive': case 'singularity':
-      return { count: 8000, speed: 35, gravity: 20, lifetime: 2.0, size: 200, spread: 'sphere' };
+      return { count: 800, speed: 35, gravity: 20, lifetime: 1.2, size: 200, spread: 'sphere' };
     // SPREAD: many small pieces popping outward in a ring
     case 'spread': case 'sonic':
-      return { count: 4000, speed: 25, gravity: 15, lifetime: 1.0, size: 100, spread: 'ring' };
+      return { count: 500, speed: 25, gravity: 15, lifetime: 0.7, size: 100, spread: 'ring' };
     // TECH: freeze/glitch — slow drift, column shape
     case 'tech': case 'nano':
-      return { count: 3000, speed: 8, gravity: 2, lifetime: 2.5, size: 160, spread: 'column' };
+      return { count: 400, speed: 8, gravity: 2, lifetime: 1.5, size: 160, spread: 'column' };
     // FORBIDDEN: dramatic slow-mo, radial burst
     case 'forbidden': case 'warp':
-      return { count: 10000, speed: 15, gravity: 3, lifetime: 3.0, size: 250, spread: 'burst' };
+      return { count: 1200, speed: 15, gravity: 3, lifetime: 2.0, size: 250, spread: 'burst' };
     // MISC
     case 'force': case 'swarm': case 'whip':
-      return { count: 4000, speed: 22, gravity: 12, lifetime: 1.4, size: 140, spread: 'sphere' };
+      return { count: 500, speed: 22, gravity: 12, lifetime: 1.0, size: 140, spread: 'sphere' };
     default:
-      return { count: 5000, speed: 25, gravity: 15, lifetime: 1.5, size: 150, spread: 'sphere' };
+      return { count: 500, speed: 25, gravity: 15, lifetime: 1.0, size: 150, spread: 'sphere' };
   }
 }
 

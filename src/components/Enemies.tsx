@@ -25,56 +25,56 @@ interface EnemyTraits {
 
 const ENEMY_TRAITS: Record<string, EnemyTraits> = {
   swarmer: {
-    speed: 3.5, baseScale: 0.5, rotSpeed: 0.02,
+    speed: 3.5, baseScale: 0.7, rotSpeed: 0.02,
     contactDamage: 5, contactRange: 1.5,
     emissive: '#ff0044', core: '#ff0040',
     ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
     preferredRange: 0, wireframe: true,
   },
   spitter: {
-    speed: 2.5, baseScale: 0.6, rotSpeed: 0.01,
+    speed: 2.5, baseScale: 0.85, rotSpeed: 0.01,
     contactDamage: 3, contactRange: 1.5,
-    emissive: '#aa00ff', core: '#cc44ff',
+    emissive: '#cc00ff', core: '#dd44ff',
     ranged: true, fireInterval: 2000, projectileSpeed: 18, projectileDamage: 10,
     preferredRange: 18, wireframe: false,
   },
   charger: {
-    speed: 2.0, baseScale: 0.7, rotSpeed: 0.03,
+    speed: 2.0, baseScale: 1.0, rotSpeed: 0.03,
     contactDamage: 15, contactRange: 2.0,
     emissive: '#ff6600', core: '#ff8800',
     ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
     preferredRange: 0, wireframe: true,
   },
   shielder: {
-    speed: 2.0, baseScale: 0.8, rotSpeed: 0.008,
+    speed: 2.0, baseScale: 1.1, rotSpeed: 0.008,
     contactDamage: 5, contactRange: 2.0,
-    emissive: '#0066ff', core: '#00aaff',
+    emissive: '#0088ff', core: '#00ccff',
     ranged: true, fireInterval: 4000, projectileSpeed: 14, projectileDamage: 15,
     preferredRange: 14, wireframe: false,
   },
   bomber: {
-    speed: 4.0, baseScale: 0.9, rotSpeed: 0.05,
+    speed: 4.0, baseScale: 1.0, rotSpeed: 0.05,
     contactDamage: 15, contactRange: 2.0,
-    emissive: '#ffaa00', core: '#ff4400',
+    emissive: '#ffcc00', core: '#ff6600',
     ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
     preferredRange: 0, wireframe: false,
   },
   juggernaut: {
-    speed: 2.5, baseScale: 1.8, rotSpeed: 0.005,
+    speed: 2.5, baseScale: 2.2, rotSpeed: 0.005,
     contactDamage: 10, contactRange: 3.0,
     emissive: '#0088ff', core: '#00ccff',
     ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
     preferredRange: 0, wireframe: true,
   },
   phantom: {
-    speed: 5.0, baseScale: 0.65, rotSpeed: 0.04,
+    speed: 5.0, baseScale: 0.85, rotSpeed: 0.04,
     contactDamage: 12, contactRange: 1.8,
     emissive: '#00ff88', core: '#00ffaa',
     ranged: true, fireInterval: 3000, projectileSpeed: 22, projectileDamage: 20,
     preferredRange: 12, wireframe: true,
   },
   hive_queen: {
-    speed: 0, baseScale: 2.0, rotSpeed: 0.008,
+    speed: 0, baseScale: 2.5, rotSpeed: 0.008,
     contactDamage: 8, contactRange: 3.5,
     emissive: '#ff00aa', core: '#ff44cc',
     ranged: false, fireInterval: 0, projectileSpeed: 0, projectileDamage: 0,
@@ -154,8 +154,8 @@ function Enemy({ enemy }: { enemy: EnemyData }) {
   const currentScale = enemy.type === 'juggernaut' ? traits.baseScale * (0.5 + 0.5 * healthRatio) : traits.baseScale;
   
   const intensityMultiplier = enemy.type === 'juggernaut' ? healthRatio : 1;
-  const wireframeIntensity = 4 * intensityMultiplier;
-  const coreIntensity = 8 * intensityMultiplier;
+  const wireframeIntensity = 6 * intensityMultiplier;
+  const coreIntensity = 12 * intensityMultiplier;
   // Phantom flickers when about to teleport
   const phantomOpacity = enemy.type === 'phantom' ? (0.4 + 0.6 * Math.abs(Math.sin(Date.now() * 0.005))) : 1;
 

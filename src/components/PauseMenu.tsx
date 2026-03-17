@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useStore, WEAPON_PROFILES, MAX_WEAPON_LEVEL, getUpgradeCost } from "@/store";
 import type { WeaponType, ColorblindMode, KeyBinds } from "@/store";
+import { audioManager, MUSIC_THEMES } from "@/lib/audio";
+import type { MusicTheme } from "@/lib/audio";
 
 const WeaponInspect = lazy(() => import("./WeaponInspect"));
 
@@ -124,6 +126,7 @@ export function PauseMenu() {
   const [statusLine, setStatusLine] = useState("SYSTEMS NOMINAL");
   const [rebindingAction, setRebindingAction] = useState<keyof KeyBinds | null>(null);
   const [inspectWeapon, setInspectWeapon] = useState<WeaponType | null>(null);
+  const [musicTheme, setMusicTheme] = useState<MusicTheme>(() => audioManager.getTheme());
   const inspectLevel = inspectWeapon ? weaponLevels[inspectWeapon] : 0;
 
   const levelTarget = level * 10;
@@ -202,7 +205,7 @@ export function PauseMenu() {
       onMouseDown={(e) => e.stopPropagation()}
     >
 
-      <div className="glass-panel tactical-shell tactical-stars tactical-scan w-[min(96vw,1320px)] max-h-[90vh] overflow-y-auto p-6 md:p-8 flex flex-col gap-5 border-cyan-300/40 shadow-[0_0_40px_rgba(34,211,238,0.14),0_40px_80px_rgba(0,0,0,0.55)]">
+      <div className="glass-panel tactical-shell tactical-stars tactical-scan w-[min(96vw,1320px)] max-h-[90vh] p-6 md:p-8 flex flex-col gap-5 border-cyan-300/40 shadow-[0_0_40px_rgba(34,211,238,0.14),0_40px_80px_rgba(0,0,0,0.55)]">
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -237,7 +240,7 @@ export function PauseMenu() {
         </div>
 
         {/* Tab Content */}
-        <div className="min-h-[380px]">
+        <div className="min-h-0 flex-1 overflow-y-auto">
 
           {activeTab === "arsenal" && (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -390,6 +393,17 @@ export function PauseMenu() {
                     <input type="range" min="0" max="100" value={Math.round(hudSettings.musicVolume * 100)}
                       onChange={(e) => setMusicVolume(Number(e.target.value) / 100)}
                       className="w-full h-2 rounded-full appearance-none bg-black/50 border border-cyan-500/30 accent-cyan-400 cursor-pointer" />
+                  </div>
+                  <div>
+                    <p className="font-mono text-sm uppercase tracking-wider text-cyan-200 mb-2">Music Theme</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(MUSIC_THEMES) as MusicTheme[]).map((key) => (
+                        <button key={key} type="button"
+                          onClick={() => { setMusicTheme(key); audioManager.setTheme(key); playUiSound(UI_SFX.equip, 0.25); setStatusLine(`THEME: ${MUSIC_THEMES[key].label.toUpperCase()}`); }}
+                          className={`px-3 py-1.5 rounded border text-xs font-mono tracking-wider transition-all cursor-pointer ${musicTheme === key ? "border-cyan-400 bg-cyan-500/20 text-cyan-200" : "border-cyan-500/20 bg-black/30 text-slate-400 hover:border-cyan-400/40 hover:text-cyan-300"}`}
+                        >{MUSIC_THEMES[key].label}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

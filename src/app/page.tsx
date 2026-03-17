@@ -1,5 +1,14 @@
 "use client";
 
+// Suppress Three.js "lab" color function warnings caused by Tailwind v4 CSS output
+if (typeof window !== 'undefined') {
+  const origError = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('unsupported color function')) return;
+    origError.apply(console, args);
+  };
+}
+
 import { Canvas } from "@react-three/fiber";
 import { Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
@@ -92,7 +101,7 @@ const RETICLE_PROFILES = {
 
 function WeaponReticle({ weapon, bloom, pulse }: { weapon: string; bloom: number; pulse: boolean }) {
   const p = RETICLE_PROFILES[weapon as keyof typeof RETICLE_PROFILES] ?? RETICLE_PROFILES.pulse_pistol;
-  const s = p.size + bloom * 1.2;
+  const s = p.size + bloom * 0.4;
 
   if (weapon === "pulse_pistol" || weapon === "plasma_caster") {
     // Precision diamond + spinning inner ring + crosshair lines
@@ -352,6 +361,8 @@ export default function Game() {
   // Load high scores when game ends
   useEffect(() => {
     if (gamePhase === 'gameover') {
+      // Release pointer lock so cursor is visible on the game over screen
+      if (document.pointerLockElement) document.exitPointerLock();
       setHighScores(getHighScores());
       setScoreSubmitted(false);
       setGlobalRank(null);
@@ -500,20 +511,24 @@ export default function Game() {
     const el = document.getElementById('game-root');
     const handleShake = (e: Event) => {
       intensity = Math.max(intensity, (e as CustomEvent).detail.intensity);
+      startShake();
     };
+    let running = false;
     const tick = () => {
       if (el) {
         if (intensity > 0.01) {
           el.style.transform = `translate(${(Math.random() - 0.5) * intensity * 10}px, ${(Math.random() - 0.5) * intensity * 10}px)`;
           intensity *= 0.85;
+          frame = requestAnimationFrame(tick);
+          return;
         } else if (intensity > 0) {
           intensity = 0;
           el.style.transform = '';
         }
       }
-      frame = requestAnimationFrame(tick);
+      running = false;
     };
-    frame = requestAnimationFrame(tick);
+    const startShake = () => { if (!running) { running = true; frame = requestAnimationFrame(tick); } };
     window.addEventListener('nova:shake', handleShake as EventListener);
     return () => { window.removeEventListener('nova:shake', handleShake as EventListener); cancelAnimationFrame(frame); };
   }, []);
@@ -586,7 +601,7 @@ export default function Game() {
       if (e.button !== 0) return;
       if (!document.pointerLockElement) return;
       setReticlePulse(true);
-      setReticleBloom((prev) => Math.min(26, prev + 8));
+      setReticleBloom((prev) => Math.min(12, prev + 3));
       window.setTimeout(() => setReticlePulse(false), 110);
     };
 
@@ -634,7 +649,7 @@ export default function Game() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setReticleBloom((prev) => Math.max(0, prev - 1.4));
+      setReticleBloom((prev) => Math.max(0, prev - 2.0));
       setIncoming((prev) => ({
         left: Math.max(0, prev.left * 0.86 - 0.01),
         right: Math.max(0, prev.right * 0.86 - 0.01),
@@ -754,7 +769,7 @@ export default function Game() {
             <RigidBody type="fixed" colliders="cuboid" position={[0, -0.5, 0]}>
               <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.5, 0]}>
                 <planeGeometry args={[200, 200]} />
-                <MeshReflectorMaterial blur={[200, 80]} resolution={512} mixBlur={1} mixStrength={35} roughness={1} depthScale={1.2} minDepthThreshold={0.4} maxDepthThreshold={1.4} color="#151520" metalness={0.5} mirror={0.8} />
+                <MeshReflectorMaterial blur={[100, 40]} resolution={256} mixBlur={1} mixStrength={20} roughness={1} depthScale={1.2} minDepthThreshold={0.4} maxDepthThreshold={1.4} color="#151520" metalness={0.5} mirror={0.5} />
               </mesh>
               <mesh visible={false}><boxGeometry args={[200, 1, 200]} /></mesh>
             </RigidBody>
@@ -773,11 +788,11 @@ export default function Game() {
 
           <Environment preset="night" />
           <Grid position={[0, 0.01, 0]} args={[200, 200]} cellColor="#00ffff" sectionColor="#ff00ff" cellThickness={0.5} sectionThickness={1.0} fadeDistance={40} />
-          <Stars radius={50} depth={50} count={3000} factor={2} fade speed={0.5} />
+          <Stars radius={50} depth={50} count={1000} factor={2} fade speed={0.5} />
         </Suspense>
 
         <EffectComposer enabled={hudSettings.graphicsQuality !== 'low'}>
-          <Bloom luminanceThreshold={1} mipmapBlur intensity={hudSettings.graphicsQuality === 'high' ? 1.5 : 0.8} />
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={hudSettings.graphicsQuality === 'high' ? 1.0 : 0.5} />
           <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(hudSettings.graphicsQuality === 'high' ? 0.002 : 0, hudSettings.graphicsQuality === 'high' ? 0.002 : 0)} />
           <Vignette eskil={false} offset={0.1} darkness={1.1} />
           <Noise opacity={hudSettings.graphicsQuality === 'high' ? 0.03 : 0} />
