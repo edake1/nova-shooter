@@ -70,6 +70,28 @@ export function getUpgradeCost(base: number, currentLevel: number): number {
 
 export type GamePhase = 'menu' | 'loading' | 'playing' | 'paused' | 'gameover';
 
+// === DIFFICULTY SYSTEM ===
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'impossible';
+
+export interface DifficultyConfig {
+  label: string;
+  lives: number;
+  enemyHpMult: number;
+  enemyDamageMult: number;
+  dropChanceMult: number;
+  spawnRateMult: number;
+  scoreMultiplier: number;
+  color: string;
+}
+
+export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
+  easy:       { label: 'EASY',       lives: 5, enemyHpMult: 0.7, enemyDamageMult: 0.5,  dropChanceMult: 1.5, spawnRateMult: 0.8, scoreMultiplier: 0.5,  color: '#4ade80' },
+  medium:     { label: 'MEDIUM',     lives: 3, enemyHpMult: 1.0, enemyDamageMult: 1.0,  dropChanceMult: 1.0, spawnRateMult: 1.0, scoreMultiplier: 1.0,  color: '#facc15' },
+  hard:       { label: 'HARD',       lives: 2, enemyHpMult: 1.5, enemyDamageMult: 1.5,  dropChanceMult: 0.7, spawnRateMult: 1.3, scoreMultiplier: 2.0,  color: '#f97316' },
+  impossible: { label: 'IMPOSSIBLE', lives: 1, enemyHpMult: 2.5, enemyDamageMult: 2.0,  dropChanceMult: 0.4, spawnRateMult: 1.6, scoreMultiplier: 4.0,  color: '#ef4444' },
+};
+// === END DIFFICULTY ===
+
 // === LOOT DROP SYSTEM ===
 export type LootType = 'health' | 'shield' | 'damage_boost' | 'speed_boost' | 'ammo_surge' | 'intel_cache' | 'weapon_crate';
 
@@ -96,14 +118,14 @@ export const LOOT_CONFIG: Record<LootType, { color: string; label: string; dropW
   weapon_crate: { color: '#a855f7', label: 'WEAPON CRATE', dropWeight: 3 },
 };
 
-// Drop chance per enemy type
+// Drop chance per enemy type (base values — modified by difficulty)
 const DROP_CHANCE: Record<EnemyType, number> = {
-  swarmer: 0.2, bomber: 0.35, juggernaut: 0.5,
-  spitter: 0.2, charger: 0.25, shielder: 0.3, phantom: 0.4, hive_queen: 1.0,
+  swarmer: 0.35, bomber: 0.45, juggernaut: 0.6,
+  spitter: 0.35, charger: 0.4, shielder: 0.45, phantom: 0.5, hive_queen: 1.0,
 };
 
-function rollLootDrop(enemyType: EnemyType, position: [number, number, number]): LootDrop | null {
-  if (Math.random() > DROP_CHANCE[enemyType]) return null;
+function rollLootDrop(enemyType: EnemyType, position: [number, number, number], dropChanceMult = 1.0): LootDrop | null {
+  if (Math.random() > DROP_CHANCE[enemyType] * dropChanceMult) return null;
   // Weighted random selection
   const entries = Object.entries(LOOT_CONFIG) as [LootType, typeof LOOT_CONFIG[LootType]][];
   const totalWeight = entries.reduce((s, [, v]) => s + v.dropWeight, 0);
@@ -212,6 +234,9 @@ function nextId() { return _nextId++; }
 
 interface GameState {
   gamePhase: GamePhase;
+  difficulty: Difficulty;
+  lives: number;
+  maxLives: number;
   score: number;
   level: number;
   killsThisLevel: number;
@@ -241,6 +266,7 @@ interface GameState {
   removeExplosion: (id: number) => void;
   setPaused: (val: boolean) => void;
   setGamePhase: (phase: GamePhase) => void;
+  setDifficulty: (d: Difficulty) => void;
   startGame: () => void;
   damagePlayer: (amount: number) => void;
   resetGame: () => void;
@@ -317,6 +343,8 @@ interface SaveData {
   weaponLevels: Record<string, number>;
   equippedWeapon: string;
   playerHealth: number;
+  lives?: number;
+  difficulty?: Difficulty;
   hudSettings: HudSettings;
   savedAt: number;
 }
@@ -355,6 +383,9 @@ const PLAYER_MAX_HEALTH = 200;
 
 export const useStore = create<GameState>((set) => ({
   gamePhase: 'menu' as GamePhase,
+  difficulty: 'medium' as Difficulty,
+  lives: 3,
+  maxLives: 3,
   score: 0,
   level: 1,
   killsThisLevel: 0,
@@ -400,7 +431,10 @@ export const useStore = create<GameState>((set) => ({
     if (val) setTimeout(() => useStore.getState().saveGame(), 0);
   },
   setGamePhase: (phase) => set({ gamePhase: phase, isPaused: phase !== 'playing', isGameOver: phase === 'gameover' }),
-  startGame: () => set({
+  setDifficulty: (d) => set({ difficulty: d, lives: DIFFICULTY_CONFIGS[d].lives, maxLives: DIFFICULTY_CONFIGS[d].lives }),
+  startGame: () => set((state) => {
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty];
+    return {
     gamePhase: 'playing' as GamePhase,
     isPaused: false,
     isGameOver: false,
@@ -412,6 +446,8 @@ export const useStore = create<GameState>((set) => ({
     gameStartedAt: Date.now(),
     playerHealth: PLAYER_MAX_HEALTH,
     playerMaxHealth: PLAYER_MAX_HEALTH,
+    lives: cfg.lives,
+    maxLives: cfg.lives,
     equippedWeapon: 'pulse_pistol' as WeaponType,
     weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0, lightning_coil: 0, blade_wave: 0, railgun: 0, gravity_well: 0, swarm_missiles: 0, beam_laser: 0, ricochet_cannon: 0, sonic_boom: 0, nano_swarm: 0, photon_burst: 0, plasma_whip: 0, warp_lance: 0 },
     combo: { count: 0, multiplier: 1, lastKillAt: 0, maxCombo: 0 },
@@ -425,10 +461,12 @@ export const useStore = create<GameState>((set) => ({
     lootDrops: [],
     activeBuffs: [],
     shieldHP: 0,
+    };
   }),
 
   damagePlayer: (amount) => set((state) => {
-    let remaining = amount;
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty];
+    let remaining = amount * cfg.enemyDamageMult;
     let newShield = state.shieldHP;
     // Shield absorbs damage first
     if (newShield > 0) {
@@ -438,13 +476,20 @@ export const useStore = create<GameState>((set) => ({
     }
     const newHealth = Math.max(0, state.playerHealth - remaining);
     if (newHealth <= 0) {
+      const newLives = state.lives - 1;
+      if (newLives > 0) {
+        // Lose a life, respawn with full health
+        window.dispatchEvent(new CustomEvent('nova:lifeLost', { detail: { livesLeft: newLives } }));
+        return { playerHealth: PLAYER_MAX_HEALTH, shieldHP: 0, lives: newLives, activeBuffs: [] };
+      }
+      // No lives left — game over
       writeHighScore({ score: state.score, level: state.level, kills: state.totalKills, date: Date.now() });
-      return { playerHealth: 0, shieldHP: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
+      return { playerHealth: 0, shieldHP: 0, lives: 0, isGameOver: true, isPaused: true, gamePhase: 'gameover' as GamePhase };
     }
     return { playerHealth: newHealth, shieldHP: newShield };
   }),
 
-  resetGame: () => set({
+  resetGame: () => set((state) => ({
     gamePhase: 'menu' as GamePhase,
     score: 0,
     level: 1,
@@ -452,6 +497,8 @@ export const useStore = create<GameState>((set) => ({
     totalKills: 0,
     damageDealt: 0,
     gameStartedAt: 0,
+    lives: DIFFICULTY_CONFIGS[state.difficulty].lives,
+    maxLives: DIFFICULTY_CONFIGS[state.difficulty].lives,
     enemies: [
       { id: nextId(), position: [0, 4, -30], type: 'swarmer', health: 1, maxHealth: 1 },
       { id: nextId(), position: [20, 3, -35], type: 'swarmer', health: 1, maxHealth: 1 },
@@ -469,7 +516,7 @@ export const useStore = create<GameState>((set) => ({
     equippedWeapon: 'pulse_pistol',
     weaponLevels: { pulse_pistol: 1, plasma_caster: 0, frag_launcher: 0, shrapnel_blaster: 0, cryo_emitter: 0, void_reaper: 0, lightning_coil: 0, blade_wave: 0, railgun: 0, gravity_well: 0, swarm_missiles: 0, beam_laser: 0, ricochet_cannon: 0, sonic_boom: 0, nano_swarm: 0, photon_burst: 0, plasma_whip: 0, warp_lance: 0 },
     combo: { count: 0, multiplier: 1, lastKillAt: 0, maxCombo: 0 },
-  }),
+  })),
   buyWeaponUpgrade: (weapon, cost) => {
     let success = false;
     set((state) => {
@@ -568,39 +615,53 @@ export const useStore = create<GameState>((set) => ({
         const newLevel = state.level + 1;
         window.dispatchEvent(new CustomEvent('nova:levelup', { detail: { level: newLevel } }));
         setTimeout(() => useStore.getState().saveGame(), 0);
-        // Boss wave spawns
-        if (newLevel === 5 || newLevel === 9) {
+        // Boss wave spawns — every 5 levels with escalating difficulty
+        if (newLevel % 5 === 0) {
           setTimeout(() => {
             const s = useStore.getState();
-            const hpMult = 1 + (newLevel * 0.2);
+            const diffCfg = DIFFICULTY_CONFIGS[s.difficulty];
+            const hpMult = (1 + (newLevel * 0.2)) * diffCfg.enemyHpMult;
+            const bossWave = Math.floor(newLevel / 5); // 1, 2, 3, 4...
             const bossEnemies: EnemyData[] = [];
-            if (newLevel === 5) {
-              // 3x Juggernauts
+
+            // Escalating boss encounters
+            if (bossWave === 1) {
+              // Wave 1 (level 5): 3 Juggernauts
               for (let i = 0; i < 3; i++) {
                 const angle = (Math.PI * 2 / 3) * i;
                 const hp = Math.floor(5 * hpMult * 2);
-                bossEnemies.push({
-                  id: nextId(),
-                  position: [Math.cos(angle) * 25, 4, Math.sin(angle) * 25],
-                  type: 'juggernaut',
-                  health: hp,
-                  maxHealth: hp,
-                });
+                bossEnemies.push({ id: nextId(), position: [Math.cos(angle) * 25, 4, Math.sin(angle) * 25], type: 'juggernaut', health: hp, maxHealth: hp });
               }
-            } else if (newLevel === 9) {
-              // Mega Juggernaut — a single juggernaut with massive HP
-              const hp = Math.floor(5 * hpMult * 5);
-              bossEnemies.push({
-                id: nextId(),
-                position: [0, 5, -30],
-                type: 'juggernaut',
-                health: hp,
-                maxHealth: hp,
-              });
+            } else if (bossWave === 2) {
+              // Wave 2 (level 10): 1 Mega Juggernaut + 2 Hive Queens
+              const megaHp = Math.floor(5 * hpMult * 5);
+              bossEnemies.push({ id: nextId(), position: [0, 5, -30], type: 'juggernaut', health: megaHp, maxHealth: megaHp });
+              for (let i = 0; i < 2; i++) {
+                const angle = (Math.PI * 2 / 2) * i + Math.PI / 2;
+                const hp = Math.floor(20 * hpMult * 1.5);
+                bossEnemies.push({ id: nextId(), position: [Math.cos(angle) * 30, 4, Math.sin(angle) * 30], type: 'hive_queen', health: hp, maxHealth: hp });
+              }
+            } else {
+              // Wave 3+ (level 15, 20, ...): Mega Juggernaut + Hive Queens + escort Juggernauts, scaling up
+              const megaHp = Math.floor(5 * hpMult * (3 + bossWave));
+              bossEnemies.push({ id: nextId(), position: [0, 5, -30], type: 'juggernaut', health: megaHp, maxHealth: megaHp });
+              const queenCount = Math.min(4, bossWave - 1);
+              for (let i = 0; i < queenCount; i++) {
+                const angle = (Math.PI * 2 / queenCount) * i;
+                const hp = Math.floor(20 * hpMult * (1 + bossWave * 0.3));
+                bossEnemies.push({ id: nextId(), position: [Math.cos(angle) * 30, 4, Math.sin(angle) * 30], type: 'hive_queen', health: hp, maxHealth: hp });
+              }
+              const escortCount = Math.min(5, bossWave);
+              for (let i = 0; i < escortCount; i++) {
+                const angle = (Math.PI * 2 / escortCount) * i + Math.PI / escortCount;
+                const hp = Math.floor(5 * hpMult * 2);
+                bossEnemies.push({ id: nextId(), position: [Math.cos(angle) * 20, 3, Math.sin(angle) * 20], type: 'juggernaut', health: hp, maxHealth: hp });
+              }
             }
+
             if (bossEnemies.length > 0) {
               useStore.setState((prev) => ({ enemies: [...prev.enemies, ...bossEnemies] }));
-              window.dispatchEvent(new CustomEvent('nova:boss', { detail: { level: newLevel } }));
+              window.dispatchEvent(new CustomEvent('nova:boss', { detail: { level: newLevel, wave: bossWave } }));
             }
           }, 1000);
         }
@@ -637,7 +698,8 @@ export const useStore = create<GameState>((set) => ({
     return state;
   }),
   spawnEnemies: (playerPos) => set((state) => {
-    const maxEnemies = Math.min(20, 5 + state.level * 2);
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty];
+    const maxEnemies = Math.min(25, Math.floor((5 + state.level * 2) * cfg.spawnRateMult));
     if (state.enemies.length >= maxEnemies) return state;
     
     // Build spawn pool based on level — new types phase in gradually
@@ -651,7 +713,7 @@ export const useStore = create<GameState>((set) => ({
     if (state.level >= 8) types.push('hive_queen');
     
     const type = types[Math.floor(Math.random() * types.length)];
-    const healthMultiplier = 1 + (state.level * 0.2);
+    const healthMultiplier = (1 + (state.level * 0.2)) * cfg.enemyHpMult;
     const baseHealth: Record<EnemyType, number> = {
       swarmer: 1, spitter: 2, bomber: 2, charger: 4, shielder: 3, juggernaut: 5, phantom: 3, hive_queen: 20,
     };
@@ -687,7 +749,8 @@ export const useStore = create<GameState>((set) => ({
 
   // === LOOT ACTIONS ===
   spawnLootDrop: (enemyType, position) => set((state) => {
-    const drop = rollLootDrop(enemyType, position);
+    const cfg = DIFFICULTY_CONFIGS[state.difficulty];
+    const drop = rollLootDrop(enemyType, position, cfg.dropChanceMult);
     if (!drop) return state;
     return { lootDrops: [...state.lootDrops, drop] };
   }),
@@ -774,8 +837,9 @@ export const useStore = create<GameState>((set) => ({
       surviving.push(p);
     }
     if (totalDamage > 0) {
-      // Apply damage through shield first
-      let remaining = totalDamage;
+      // Apply damage through shield first, with difficulty damage multiplier
+      const cfg = DIFFICULTY_CONFIGS[state.difficulty];
+      let remaining = totalDamage * cfg.enemyDamageMult;
       let newShield = state.shieldHP;
       if (newShield > 0) {
         const absorbed = Math.min(newShield, remaining);
@@ -785,8 +849,13 @@ export const useStore = create<GameState>((set) => ({
       const newHealth = Math.max(0, state.playerHealth - remaining);
       window.dispatchEvent(new CustomEvent('nova:playerHit', { detail: { damage: totalDamage } }));
       if (newHealth <= 0) {
+        const newLives = state.lives - 1;
+        if (newLives > 0) {
+          window.dispatchEvent(new CustomEvent('nova:lifeLost', { detail: { livesLeft: newLives } }));
+          return { enemyProjectiles: surviving, playerHealth: PLAYER_MAX_HEALTH, shieldHP: 0, lives: newLives, activeBuffs: [] };
+        }
         writeHighScore({ score: state.score, level: state.level, kills: state.totalKills, date: Date.now() });
-        return { enemyProjectiles: surviving, playerHealth: 0, shieldHP: newShield, gamePhase: 'gameover' as GamePhase, isPaused: true, isGameOver: true };
+        return { enemyProjectiles: surviving, playerHealth: 0, shieldHP: newShield, lives: 0, gamePhase: 'gameover' as GamePhase, isPaused: true, isGameOver: true };
       }
       return { enemyProjectiles: surviving, playerHealth: newHealth, shieldHP: newShield };
     }
@@ -807,6 +876,8 @@ export const useStore = create<GameState>((set) => ({
       weaponLevels: s.weaponLevels,
       equippedWeapon: s.equippedWeapon,
       playerHealth: s.playerHealth,
+      lives: s.lives,
+      difficulty: s.difficulty,
       hudSettings: s.hudSettings,
       savedAt: Date.now(),
     }, s.selectedSaveSlot);
@@ -827,6 +898,7 @@ export const useStore = create<GameState>((set) => ({
       equippedWeapon: data.equippedWeapon as WeaponType,
       playerHealth: data.playerHealth,
       playerMaxHealth: PLAYER_MAX_HEALTH,
+      lives: data.lives ?? DIFFICULTY_CONFIGS[useStore.getState().difficulty].lives,
       hudSettings: { ...useStore.getState().hudSettings, ...data.hudSettings },
       enemies: [],
       enemyProjectiles: [],

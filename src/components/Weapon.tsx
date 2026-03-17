@@ -9,30 +9,30 @@ function getSfxVol(): number {
 }
 
 const WEAPON_PROFILE: Record<WeaponType, { baseDamage: number; explosion: ExplosionType; fireRate: number }> = {
-  pulse_pistol:     { baseDamage: 1, explosion: "kinetic",     fireRate: 0.15 },
-  plasma_caster:    { baseDamage: 2, explosion: "energy",      fireRate: 0.30 },
-  frag_launcher:    { baseDamage: 4, explosion: "explosive",   fireRate: 0.80 },
-  shrapnel_blaster: { baseDamage: 1, explosion: "spread",      fireRate: 0.35 },
-  cryo_emitter:     { baseDamage: 1, explosion: "tech",        fireRate: 0.20 },
-  void_reaper:      { baseDamage: 3, explosion: "forbidden",   fireRate: 0.40 },
-  lightning_coil:   { baseDamage: 2, explosion: "arc",         fireRate: 0.35 },
-  blade_wave:       { baseDamage: 3, explosion: "force",       fireRate: 0.55 },
-  railgun:          { baseDamage: 6, explosion: "kinetic",     fireRate: 1.20 },
-  gravity_well:     { baseDamage: 5, explosion: "singularity", fireRate: 1.50 },
-  swarm_missiles:   { baseDamage: 1, explosion: "swarm",       fireRate: 0.60 },
-  beam_laser:       { baseDamage: 2, explosion: "beam",        fireRate: 0.10 },
-  ricochet_cannon:  { baseDamage: 2, explosion: "kinetic",     fireRate: 0.45 },
-  sonic_boom:       { baseDamage: 3, explosion: "sonic",       fireRate: 0.70 },
-  nano_swarm:       { baseDamage: 1, explosion: "nano",        fireRate: 1.00 },
-  photon_burst:     { baseDamage: 4, explosion: "photon",      fireRate: 0.90 },
-  plasma_whip:      { baseDamage: 2, explosion: "whip",        fireRate: 0.40 },
-  warp_lance:       { baseDamage: 8, explosion: "warp",        fireRate: 2.00 },
+  pulse_pistol:     { baseDamage: 3,  explosion: "kinetic",     fireRate: 0.15 },
+  plasma_caster:    { baseDamage: 6,  explosion: "energy",      fireRate: 0.30 },
+  frag_launcher:    { baseDamage: 12, explosion: "explosive",   fireRate: 0.80 },
+  shrapnel_blaster: { baseDamage: 3,  explosion: "spread",      fireRate: 0.35 },
+  cryo_emitter:     { baseDamage: 3,  explosion: "tech",        fireRate: 0.20 },
+  void_reaper:      { baseDamage: 10, explosion: "forbidden",   fireRate: 0.40 },
+  lightning_coil:   { baseDamage: 5,  explosion: "arc",         fireRate: 0.35 },
+  blade_wave:       { baseDamage: 8,  explosion: "force",       fireRate: 0.55 },
+  railgun:          { baseDamage: 18, explosion: "kinetic",     fireRate: 1.20 },
+  gravity_well:     { baseDamage: 15, explosion: "singularity", fireRate: 1.50 },
+  swarm_missiles:   { baseDamage: 3,  explosion: "swarm",       fireRate: 0.60 },
+  beam_laser:       { baseDamage: 5,  explosion: "beam",        fireRate: 0.10 },
+  ricochet_cannon:  { baseDamage: 5,  explosion: "kinetic",     fireRate: 0.45 },
+  sonic_boom:       { baseDamage: 8,  explosion: "sonic",       fireRate: 0.70 },
+  nano_swarm:       { baseDamage: 4,  explosion: "nano",        fireRate: 1.00 },
+  photon_burst:     { baseDamage: 12, explosion: "photon",      fireRate: 0.90 },
+  plasma_whip:      { baseDamage: 6,  explosion: "whip",        fireRate: 0.40 },
+  warp_lance:       { baseDamage: 25, explosion: "warp",        fireRate: 2.00 },
 };
 
-// Damage scales with weapon level: +20% per level
+// Damage scales with weapon level: +40% per level
 function getWeaponDamage(weapon: WeaponType, level: number): number {
   const base = WEAPON_PROFILE[weapon].baseDamage;
-  return Math.max(1, Math.round(base * (1 + (Math.max(level, 1) - 1) * 0.2)));
+  return Math.max(1, Math.round(base * (1 + (Math.max(level, 1) - 1) * 0.4)));
 }
 
 // Per-weapon fire sound mapping (reuse existing SFX files)

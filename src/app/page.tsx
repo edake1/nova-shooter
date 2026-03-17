@@ -1,6 +1,14 @@
 "use client";
 
-
+// Suppress Three.js "unsupported color function 'lab'" errors triggered by Tailwind v4 CSS.
+// Must run at module scope (before Canvas mounts) — SSR-safe via window check.
+if (typeof window !== 'undefined') {
+  const _origErr = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes('unsupported color function')) return;
+    _origErr.apply(console, args);
+  };
+}
 
 import { Canvas } from "@react-three/fiber";
 import { Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
@@ -64,8 +72,8 @@ import { Enemies } from "@/components/Enemies";
 import { GPUParticles } from "@/components/GPUParticles";
 import { LootDrops } from "@/components/LootDrops";
 import { EnemyProjectiles } from "@/components/EnemyProjectiles";
-import { useStore, LOOT_CONFIG, getHighScores, getSaveSlots } from "@/store";
-import type { HighScoreEntry } from "@/store";
+import { useStore, LOOT_CONFIG, getHighScores, getSaveSlots, DIFFICULTY_CONFIGS } from "@/store";
+import type { HighScoreEntry, Difficulty } from "@/store";
 import { PauseMenu } from "@/components/PauseMenu";
 import { WeaponWheel } from "@/components/WeaponWheel";
 import { Minimap } from "@/components/Minimap";
@@ -247,7 +255,7 @@ function MovingPlatform({ from, to, size, speed = 1 }: { from: [number, number, 
 }
 
 export default function Game() {
-  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt, enemies, selectedSaveSlot, setSelectedSaveSlot } = useStore();
+  const { score, level, killsThisLevel, totalKills, isPaused, isGameOver, setPaused, equippedWeapon, weaponLevels, hudSettings, playerHealth, playerMaxHealth, shieldHP, activeBuffs, tickBuffs, resetGame, gamePhase, startGame, setGamePhase, loadGame, hasSave, deleteSave, combo, tickCombo, damageDealt, gameStartedAt, enemies, selectedSaveSlot, setSelectedSaveSlot, difficulty, setDifficulty, lives, maxLives } = useStore();
   const levelTarget = level * 10;
   const levelProgress = Math.min(100, (killsThisLevel / levelTarget) * 100);
   const healthPercent = (playerHealth / playerMaxHealth) * 100;
@@ -344,14 +352,6 @@ export default function Game() {
     setMounted(true);
     setSaveExists(hasSave(selectedSaveSlot));
     setSaveSlots(getSaveSlots());
-
-    // Suppress Three.js "lab" color function warnings caused by Tailwind v4 CSS output
-    const origError = console.error;
-    console.error = (...args: unknown[]) => {
-      if (typeof args[0] === 'string' && args[0].includes('unsupported color function')) return;
-      origError.apply(console, args);
-    };
-    return () => { console.error = origError; };
   }, [hasSave, selectedSaveSlot]);
 
   useEffect(() => {
@@ -863,7 +863,13 @@ export default function Game() {
             <div className="glass-panel p-4 w-72">
               <div className="flex items-center justify-between">
                 <h1 className="font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 font-black text-2xl tracking-tighter italic glass-text">NOVA</h1>
-                <span className="text-cyan-500 font-mono text-xs tracking-widest">LVL {level}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[9px] tracking-widest font-bold uppercase px-1.5 py-0.5 rounded border"
+                    style={{ color: DIFFICULTY_CONFIGS[difficulty].color, borderColor: DIFFICULTY_CONFIGS[difficulty].color + '40' }}>
+                    {DIFFICULTY_CONFIGS[difficulty].label}
+                  </span>
+                  <span className="text-cyan-500 font-mono text-xs tracking-widest">LVL {level}</span>
+                </div>
               </div>
               <div className="mt-3 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-xs font-mono">
@@ -882,9 +888,17 @@ export default function Game() {
             <div className="glass-panel p-3">
               <div className="flex justify-between items-center mb-1">
                 <span className="text-red-400/80 font-mono text-xs uppercase">Hull Integrity</span>
-                <span className={`font-mono font-bold text-sm ${healthPercent > 60 ? 'text-emerald-400' : healthPercent > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
-                  {playerHealth}/{playerMaxHealth}
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Lives indicators */}
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: maxLives }).map((_, i) => (
+                      <div key={i} className={`w-2.5 h-2.5 rounded-full border ${i < lives ? 'bg-cyan-400 border-cyan-300 shadow-[0_0_4px_rgba(34,211,238,0.5)]' : 'bg-transparent border-slate-600'}`} />
+                    ))}
+                  </div>
+                  <span className={`font-mono font-bold text-sm ${healthPercent > 60 ? 'text-emerald-400' : healthPercent > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {playerHealth}/{playerMaxHealth}
+                  </span>
+                </div>
               </div>
               <div className="h-3 rounded-full bg-black/50 overflow-hidden border border-red-400/20">
                 <div className={`h-full transition-all duration-300 ${healthPercent > 60 ? 'bg-gradient-to-r from-emerald-500 to-emerald-300' : healthPercent > 30 ? 'bg-gradient-to-r from-yellow-500 to-yellow-300' : 'bg-gradient-to-r from-red-600 to-red-400'}`}
@@ -917,7 +931,7 @@ export default function Game() {
           {activeBuffs.length > 0 && (
             <div className="absolute top-4 right-4 flex flex-col gap-1.5">
               {activeBuffs.map((buff) => {
-                const remaining = Math.max(0, Math.ceil((buff.expiresAt - Date.now()) / 1000));
+                const remaining = Math.max(0, Math.ceil((buff.expiresAt - performance.now()) / 1000));
                 const cfg = LOOT_CONFIG[buff.type as keyof typeof LOOT_CONFIG];
                 return (
                   <div key={buff.type} className="glass-panel px-3 py-1.5 flex items-center gap-2 min-w-[140px]"
@@ -1166,6 +1180,31 @@ export default function Game() {
                 </div>
               )}
 
+              {/* Difficulty selector */}
+              <div className="flex gap-2 mb-3">
+                {(Object.keys(DIFFICULTY_CONFIGS) as Difficulty[]).map((d) => {
+                  const cfg = DIFFICULTY_CONFIGS[d];
+                  const active = difficulty === d;
+                  return (
+                    <button key={d} onClick={() => setDifficulty(d)}
+                      className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all cursor-pointer ${
+                        active
+                          ? 'border-2 shadow-lg scale-105'
+                          : 'border border-slate-600/40 bg-black/30 text-slate-500 hover:border-slate-500/60 hover:text-slate-300'
+                      }`}
+                      style={active ? { borderColor: cfg.color, color: cfg.color, background: `${cfg.color}15`, boxShadow: `0 0 12px ${cfg.color}30` } : {}}>
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-center font-mono text-[10px] tracking-widest uppercase mb-4" style={{ color: DIFFICULTY_CONFIGS[difficulty].color + '90' }}>
+                {difficulty === 'easy' && `${DIFFICULTY_CONFIGS[difficulty].lives} lives · less enemies · more drops`}
+                {difficulty === 'medium' && `${DIFFICULTY_CONFIGS[difficulty].lives} lives · standard combat`}
+                {difficulty === 'hard' && `${DIFFICULTY_CONFIGS[difficulty].lives} lives · tougher enemies · fewer drops`}
+                {difficulty === 'impossible' && `${DIFFICULTY_CONFIGS[difficulty].lives} life · brutal enemies · rare drops`}
+              </div>
+
               <div className="flex gap-4">
                 <button onClick={handleStartGame}
                   className="group relative px-16 py-5 rounded-lg text-white font-orbitron font-black tracking-[0.4em] text-base uppercase cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03]"
@@ -1358,7 +1397,7 @@ export default function Game() {
               }} />
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.5s both' }}>
+              <div className="grid grid-cols-4 gap-3" style={{ animation: 'gameover-fadein 0.8s ease-out 0.5s both' }}>
                 <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
                   <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Score</div>
                   <div className="text-white font-mono font-black text-2xl mt-1">{score.toString().padStart(5, '0')}</div>
@@ -1370,6 +1409,10 @@ export default function Game() {
                 <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
                   <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Kills</div>
                   <div className="text-white font-mono font-black text-2xl mt-1">{totalKills}</div>
+                </div>
+                <div className="rounded-lg border border-red-500/25 bg-red-950/20 p-3">
+                  <div className="text-red-300/60 font-mono text-[10px] uppercase tracking-widest font-bold">Mode</div>
+                  <div className="font-mono font-black text-2xl mt-1" style={{ color: DIFFICULTY_CONFIGS[difficulty].color }}>{DIFFICULTY_CONFIGS[difficulty].label}</div>
                 </div>
               </div>
 
@@ -1401,6 +1444,7 @@ export default function Game() {
                               kills: totalKills,
                               maxCombo: combo.maxCombo,
                               weapon: equippedWeapon,
+                              difficulty,
                               timePlayed: gameStartedAt ? Math.round((Date.now() - gameStartedAt) / 1000) : 0,
                               damageDealt,
                             }),
