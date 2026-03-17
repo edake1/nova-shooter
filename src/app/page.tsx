@@ -1,13 +1,6 @@
 "use client";
 
-// Suppress Three.js "lab" color function warnings caused by Tailwind v4 CSS output
-if (typeof window !== 'undefined') {
-  const origError = console.error;
-  console.error = (...args: unknown[]) => {
-    if (typeof args[0] === 'string' && args[0].includes('unsupported color function')) return;
-    origError.apply(console, args);
-  };
-}
+
 
 import { Canvas } from "@react-three/fiber";
 import { Grid, Stars, MeshReflectorMaterial, Environment } from "@react-three/drei";
@@ -351,6 +344,14 @@ export default function Game() {
     setMounted(true);
     setSaveExists(hasSave(selectedSaveSlot));
     setSaveSlots(getSaveSlots());
+
+    // Suppress Three.js "lab" color function warnings caused by Tailwind v4 CSS output
+    const origError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('unsupported color function')) return;
+      origError.apply(console, args);
+    };
+    return () => { console.error = origError; };
   }, [hasSave, selectedSaveSlot]);
 
   useEffect(() => {
@@ -1135,8 +1136,9 @@ export default function Game() {
               {mounted && (
                 <div className="flex gap-3 mb-2">
                   {saveSlots.map((slot, i) => (
-                    <button key={i}
+                    <div key={i} role="button" tabIndex={0}
                       onClick={() => setSelectedSaveSlot(i)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedSaveSlot(i); }}
                       className={`relative rounded-lg px-5 py-3 font-mono text-xs uppercase tracking-wider transition-all duration-200 cursor-pointer min-w-[140px] text-left ${
                         selectedSaveSlot === i
                           ? 'border border-cyan-400/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.15)]'
@@ -1159,7 +1161,7 @@ export default function Game() {
                           title="Delete save"
                         >✕</button>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
